@@ -1,5 +1,6 @@
-"""PodarcisLab Server - Multi-User Reverse Proxy, Auth, and Container Gateway."""
+"""PodarcisLab Server - Multi-User Reverse Proxy, Auth, WebSocket Forwarding, and Container Gateway."""
 
+import asyncio
 import os
 import sys
 from pathlib import Path
@@ -11,9 +12,10 @@ from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import HTMLResponse, RedirectResponse, Response, JSONResponse
 from starlette.routing import Route, Mount, WebSocketRoute
 from starlette.templating import Jinja2Templates
-from starlette.websockets import WebSocket
+from starlette.websockets import WebSocket, WebSocketDisconnect
 
 import httpx
+import websockets
 
 from podarcislab.server.user_manager import UserManager
 
@@ -135,6 +137,7 @@ async def route_admin_restart_container(request):
 
 
 async def route_user_proxy(request):
+    """HTTP Reverse Proxy for VS Code Web (code-server)."""
     session_user = request.session.get("user")
     target_user = request.path_params.get("username")
     subpath = request.path_params.get("path", "")
@@ -151,7 +154,10 @@ async def route_user_proxy(request):
 
     target_port = container.get("port")
     if not target_port:
-        return HTMLResponse(f"<h3>Container starting up or unavailable for {target_user}. Please refresh in a moment.</h3>", status_code=503)
+        return HTMLResponse(
+            f"<h3>VS Code container starting up for {target_user}. Please refresh in a few seconds...</h3>",
+            status_code=503,
+        )
 
     target_url = f"http://127.0.0.1:{target_port}/{subpath}"
     if request.url.query:
@@ -169,19 +175,80 @@ async def route_user_proxy(request):
                 headers=headers,
                 content=req_content,
                 follow_redirects=False,
-                timeout=60.0,
+                timeout=120.0,
             )
+            # Filter hop-by-hop headers
+            response_headers = {
+                k: v for k, v in proxy_res.headers.items()
+                if k.lower() not in ("content-encoding", "transfer-encoding", "connection")
+            }
             return Response(
                 content=proxy_res.content,
                 status_code=proxy_res.status_code,
-                headers=dict(proxy_res.headers),
+                headers=response_headers,
             )
         except httpx.RequestError as e:
             return HTMLResponse(
-                f"<h3>Workspace proxy error for user '{target_user}': {str(e)}</h3>"
-                f"<p>The target container on port {target_port} may still be booting. Try reloading.</p>",
+                f"<h3>VS Code Web proxy connecting to '{target_user}'...</h3>"
+                f"<p>The container on port {target_port} is initializing. Please reload.</p>"
+                f"<small>{str(e)}</small>",
                 status_code=502,
             )
+
+
+async def route_user_ws_proxy(websocket: WebSocket):
+    """WebSocket Proxy to support interactive terminals and LSP in VS Code Web (code-server)."""
+    session_user = websocket.session.get("user")
+    target_user = websocket.path_params.get("username")
+    subpath = websocket.path_params.get("path", "")
+
+    if not session_user or (session_user != "admin" and session_user != target_user):
+        await websocket.close(code=1008)
+        return
+
+    container = user_manager.get_container_for_user(target_user)
+    if not container or not container.get("port"):
+        await websocket.close(code=1011)
+        return
+
+    target_port = container.get("port")
+    target_ws_url = f"ws://127.0.0.1:{target_port}/{subpath}"
+    if websocket.url.query:
+        target_ws_url += f"?{websocket.url.query}"
+
+    await websocket.accept()
+
+    try:
+        async with websockets.connect(target_ws_url, max_size=None) as target_ws:
+            async def forward_client_to_target():
+                try:
+                    while True:
+                        msg = await websocket.receive()
+                        if "text" in msg and msg["text"] is not None:
+                            await target_ws.send(msg["text"])
+                        elif "bytes" in msg and msg["bytes"] is not None:
+                            await target_ws.send(msg["bytes"])
+                except (WebSocketDisconnect, asyncio.CancelledError):
+                    pass
+
+            async def forward_target_to_client():
+                try:
+                    async for msg in target_ws:
+                        if isinstance(msg, str):
+                            await websocket.send_text(msg)
+                        else:
+                            await websocket.send_bytes(msg)
+                except (WebSocketDisconnect, asyncio.CancelledError):
+                    pass
+
+            await asyncio.gather(forward_client_to_target(), forward_target_to_client())
+    except Exception:
+        pass
+    finally:
+        try:
+            await websocket.close()
+        except Exception:
+            pass
 
 
 routes = [
@@ -194,6 +261,7 @@ routes = [
     Route("/api/admin/users/delete", route_admin_delete_user, methods=["POST"]),
     Route("/api/admin/containers/restart", route_admin_restart_container, methods=["POST"]),
     Route("/user/{username}/{path:path}", route_user_proxy, methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]),
+    WebSocketRoute("/user/{username}/{path:path}", route_user_ws_proxy),
 ]
 
 secret_key = os.environ.get("PODARCISLAB_SECRET_KEY", "podarcislab-secret-key-change-in-production")
