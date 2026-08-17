@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PodarcisLab Admin Panel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0a0d14;
+      --bg-surface: #121826;
+      --bg-card: rgba(22, 30, 46, 0.7);
+      --accent-cyan: #29b8db;
+      --accent-purple: #7c3aed;
+      --accent-green: #10b981;
+      --accent-red: #ef4444;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --border-glow: rgba(41, 184, 219, 0.15);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      min-height: 100vh;
+      padding: 30px 20px;
+    }
+    .container { max-width: 1100px; margin: 0 auto; }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .brand-title {
+      font-size: 26px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #ffffff, var(--accent-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .nav-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      margin-left: 20px;
+      font-size: 14px;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--accent-cyan); }
+    .grid-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 30px;
+    }
+    @media (max-width: 850px) { .grid-layout { grid-template-columns: 1fr; } }
+    .card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-glow);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    }
+    .card-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .form-group { margin-bottom: 16px; }
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+    .form-input, .form-select {
+      width: 100%;
+      padding: 10px 14px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      color: #ffffff;
+      font-size: 14px;
+      outline: none;
+    }
+    .form-input:focus, .form-select:focus { border-color: var(--accent-cyan); }
+    .btn {
+      padding: 10px 18px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    .btn-primary { background: var(--accent-cyan); color: #0a0d14; }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-secondary { background: rgba(255, 255, 255, 0.1); color: #fff; }
+    .btn-danger { background: rgba(239, 68, 68, 0.2); color: var(--accent-red); border: 1px solid var(--accent-red); }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td {
+      padding: 12px 14px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 14px;
+    }
+    th {
+      font-size: 12px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      background: rgba(0, 0, 0, 0.2);
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .badge-success { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); }
+    .badge-warning { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+    .action-btns { display: flex; gap: 8px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand-title">🔬 PodarcisLab Control Panel</div>
+      <div class="nav-links">
+        <a href="/login">User Portal</a>
+        <a href="/logout">Logout</a>
+      </div>
+    </header>
+
+    <div class="grid-layout">
+      <!-- Create New User Container Card -->
+      <div class="card">
+        <h2 class="card-title">➕ Provision Team Member</h2>
+        <form id="create-user-form">
+          <div class="form-group">
+            <label class="form-label">Username</label>
+            <input type="text" id="new-username" name="username" class="form-input" placeholder="e.g. bob" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Initial Password</label>
+            <input type="password" id="new-password" name="password" class="form-input" placeholder="••••••••" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Role</label>
+            <select id="new-role" name="role" class="form-select">
+              <option value="user">Researcher (User)</option>
+              <option value="admin">Administrator</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary">Provision Workspace</button>
+        </form>
+      </div>
+
+      <!-- Quick Server Info -->
+      <div class="card">
+        <h2 class="card-title">ℹ Hub Information</h2>
+        <p style="color: var(--text-muted); font-size: 14px; line-height: 1.6;">
+          PodarcisLab orchestrates isolated workspaces for each team member while mounting the shared Podarcis OKF knowledge base.
+        </p>
+        <div style="margin-top: 20px; font-size: 13px; color: var(--text-muted);">
+          <div><strong>Shared Knowledge:</strong> <code>/opt/podarcislab/shared</code></div>
+          <div style="margin-top: 8px;"><strong>System Service:</strong> <code>podarcislab.service</code></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active User Containers Table -->
+    <div class="card">
+      <h2 class="card-title">🐳 Managed User Workspaces & Containers</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Username</th>
+            <th>Container Status</th>
+            <th>Assigned Port</th>
+            <th>Role</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for user in users %}
+          <tr>
+            <td><strong>{{ user.username }}</strong></td>
+            <td><span class="badge badge-success">{{ user.status or 'Active' }}</span></td>
+            <td>{{ user.port or '—' }}</td>
+            <td>
+              {% if user.role == 'admin' %}
+              <span class="badge badge-warning">Admin</span>
+              {% else %}
+              <span style="color: var(--text-muted);">Researcher</span>
+              {% endif %}
+            </td>
+            <td class="action-btns">
+              {% if user.username != 'admin' %}
+              <button class="btn btn-danger" onclick="deleteUser('{{ user.username }}')">Delete</button>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('create-user-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('new-username').value;
+      const password = document.getElementById('new-password').value;
+      const role = document.getElementById('new-role').value;
+
+      const res = await fetch('/api/admin/users/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, role }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        window.location.reload();
+      } else {
+        alert(data.error || 'Failed to create user');
+      }
+    });
+
+    async function deleteUser(username) {
+      if (!confirm(`Delete user container and workspace for ${username}?`)) return;
+      const res = await fetch('/api/admin/users/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        window.location.reload();
+      } else {
+        alert(data.error || 'Failed to delete user');
+      }
+    }
+  </script>
+</body>
+</html>
