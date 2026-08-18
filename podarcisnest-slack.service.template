@@ -1,16 +1,15 @@
 [Unit]
-Description=PodarcisNest Slack Research Agent Daemon (Socket Mode)
+Description=PodarcisNest Slack Research Agent Daemon (TypeScript / Socket Mode)
 After=network.target
 
 [Service]
 Type=simple
 User={{USER}}
 WorkingDirectory={{INSTALL_DIR}}
-ExecStart={{PYTHON_BIN}} -m podarcisnest.cli slack start
+ExecStart={{NODE_BIN}} {{CLI_BIN}} slack start
 Restart=always
 RestartSec=10s
-Environment=PODARCISNEST_ENV=production
-Environment=PYTHONUNBUFFERED=1
+Environment=NODE_ENV=production
 
 [Install]
 WantedBy=multi-user.target

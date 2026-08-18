@@ -1,16 +1,17 @@
-# 🦎 PodarcisNest — Multi-User LLM Wiki Server Infrastructure
+# 🦎 PodarcisNest — Multi-User LLM Wiki Server Infrastructure (TypeScript)
 
 | | |
 | --- | --- |
 | <br>⠀⠀⠀⠀⠀⠀⠀⠀⠠⣽⣆⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀<br>⠀⠀⠀⣤⣤⣤⣤⣄⡚⠻⣿⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀<br>⠀⠀⠀⣿⣿⣿⣿⣿⣿ ⣸⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀<br>⠀⢀⡀⠸⢿⣿⣿⣿⣿⣶⣿⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀<br>⠐⠲⣿⣼⠂ ⣿⣿⣿⣿⣿⣆⠀⢀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀<br> ⠈⠙⠻⣶⣼⣿⢿⣿⣿⣿⣿⡆⠙⢿⣦⣄⣀⠀⠀⠀⠀⠀⠀⠀⠀<br>⠀⠀⠀⠀⠀⠉⠁⢸⣿⣿⣿⣿⣿⠀⣀⣄⠉⠙⠛⠿⢷⣦⣀⠀⠀⠀<br>⠀⠀⠀⠀⢀⠰⣶⣶⣿⣿⣿⣿⣿⣿⣿⣿⡀⣠⠄⠀⠀⠈⠻⣿⡆⠀<br>⠀⠀⠠⠶⢮⣷⣿⡋⠋⠉⢹⣿⣿⠉⠀⠻⣷⣿⣿⡉⠓⠀⠀⢹⣿⠀<br>⠀⠀⠀⠋⠹⠉⠙⠁⠀⠀⠈⣿⣿⡇⠀⠀⠈⠉⠆⠁⠀⠀⠀⢸⣿⠇<br>⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⢿⣿⣄⠀⠀⠀⠀⠀⠀⠀⢀⣾⣿⠁<br>⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠻⣿⣦⣄⡀⡀⢀⣠⣴⣿⣿⠃⠀<br>⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠛⠿⠿⣿⣿⠿⠿⠋⠁⠀⠀<br> | **PodarcisNest** 🦎<br> *Multi-User LLM Wiki Server Infrastructure* <br><br>Installation:<br>```git clone https://github.com/XicuM/PodarcisNest.git```<br>```cd PodarcisNest```<br>```./setup.sh```<br> |
 
-**PodarcisNest** is the Multi-User LLM Wiki Server Infrastructure for the **Podarcis** research ecosystem.
+**PodarcisNest** is the Multi-User LLM Wiki Server Infrastructure for the **Podarcis** research ecosystem, engineered in **TypeScript / Node.js**.
 
 It provides teams with:
 * **Isolated User Workspaces**: Spawns and manages dedicated Docker containers for each researcher with VS Code Web (`code-server`), Python, and agent runtimes.
-* **Dynamic Ingress Routing**: Starlette-based session router that proxies authenticated users directly to their isolated container workspace over HTTP and WebSockets.
+* **Dynamic Ingress Routing**: Fastify-based session router and HTTP/WebSocket reverse proxy that streams authenticated users directly into their container workspace.
 * **Shared OKF Knowledge Mounts**: Mounts the centralized Open Knowledge Format (OKF v0.2) `wiki/` and `sources/` repositories directly into researcher containers.
-* **Admin Web Dashboard & Debug CLI**: Web portal and rich CLI (`podarcisnest`) for provisioning users, container lifecycles, and monitoring.
+* **Admin Web Dashboard & Debug CLI**: Web portal and operator CLI (`podarcisnest`) for provisioning users, container lifecycles, and monitoring.
+* **Slack Research Agent (`@podarcis`)**: First-party `@slack/bolt` Socket Mode agent for querying team knowledge and staging papers.
 * **Optional Systemd Integration**: Automated background daemon on Linux with automatic restarts and logging.
 
 ---
@@ -24,7 +25,7 @@ It provides teams with:
 
 ## 📋 Prerequisites
 
-* **Python**: `3.10` or newer
+* **Node.js**: `20.x` LTS or newer (`pnpm` or `npm`)
 * **Docker**: Docker Engine / Docker Desktop running locally
 
 ---
@@ -40,16 +41,8 @@ chmod +x setup.sh
 ./setup.sh
 ```
 
-> **Note on OS Compatibility**:
-> * **Linux (systemd)**: Automatically configures and starts the `podarcisnest` system service.
-> * **macOS / Linux without systemd**: Automatically skips service registration and prepares the environment for direct execution.
-> * **Windows (WSL2 / Git Bash)**: Fully supported with `./setup.sh`.
-> * **Windows (PowerShell)**: Run `python -m venv .venv`, `.venv\Scripts\pip install -e .`, and `docker build -t podarcisnest-user:latest .`.
-
 #### Custom Installation Flags:
 * `--port <port>`: Specify web interface listening port (default: `8080`).
-* `--with-slack`: **Activate Slack integration** (installs `slack-bolt` and registers `podarcisnest-slack.service`).
-* `--without-slack`: **Deactivate / skip Slack integration** (default).
 * `--no-systemd`: Skip systemd daemon registration (useful for development or Docker-in-Docker).
 * `--user-service`: Install as a user-level daemon (`systemctl --user`) instead of system-wide.
 * `--no-docker`: Skip automatic `podarcisnest-user:latest` Docker image build during setup.
@@ -71,106 +64,57 @@ Logging in as `admin` redirects to the **Admin Dashboard** (`/admin`), where you
 
 ## 🛠 Administration & Debug CLI
 
-Activate the virtual environment or run via `.venv/bin/podarcisnest`:
+Run via `podarcisnest` (if installed globally) or `./bin/podarcisnest.js`:
 
-```bash
-# Activate virtual environment
-source .venv/bin/activate
-```
-
-### System Status
 ```bash
 # Check service status, active users, and container port bindings
-podarcisnest status
-```
+./bin/podarcisnest.js status
 
-### Server Execution
-```bash
 # Run server in the foreground with auto-reload (debug mode)
-podarcisnest run --port 8080 --reload
-```
+./bin/podarcisnest.js run --port 8080
 
-### User & Container Management
-```bash
 # List all registered users and workspaces
-podarcisnest user list
+./bin/podarcisnest.js user list
 
 # Create a user (and optionally start their container immediately)
-podarcisnest user add alice --password mysecret
-podarcisnest user add bob --password mysecret --run
+./bin/podarcisnest.js user add alice --password mysecret
+./bin/podarcisnest.js user add bob --password mysecret --run
 
 # Container Lifecycle Control
-podarcisnest user start alice       # Start user workspace container
-podarcisnest user stop alice        # Stop user workspace container
-podarcisnest user restart alice     # Restart user workspace container
-podarcisnest user start-all         # Start all registered user containers
-podarcisnest user stop-all          # Stop all user containers
+./bin/podarcisnest.js user start alice       # Start user workspace container
+./bin/podarcisnest.js user stop alice        # Stop user workspace container
+./bin/podarcisnest.js user restart alice     # Restart user workspace container
+./bin/podarcisnest.js user start-all         # Start all registered user containers
+./bin/podarcisnest.js user stop-all          # Stop all user containers
 
 # Account Maintenance
-podarcisnest user password alice newpassword  # Reset password
-podarcisnest user seed alice                  # Seed or re-sync Podarcis .agents and wiki layout
-podarcisnest user delete alice                # Delete user and wipe workspace
+./bin/podarcisnest.js user password alice newpassword  # Reset password
+./bin/podarcisnest.js user seed alice                  # Seed or re-sync Podarcis .agents and wiki layout
+./bin/podarcisnest.js user delete alice                # Delete user and wipe workspace
 
 # Template Asset Synchronization
-podarcisnest sync-templates                   # Fetch/pull latest Podarcis master branch templates
+./bin/podarcisnest.js sync-templates                   # Fetch/pull latest Podarcis master branch templates
 ```
 
 ### 🤖 Slack Research Agent (`@podarcis`)
 
-PodarcisNest includes an optional Slack agent operating in **Socket Mode** with scoped read/write access to your shared research repository (`data/shared/`).
-
-#### Activating / Deactivating Slack
-
-| Operation | Command |
-|---|---|
-| **Activate during setup** | `./setup.sh --with-slack` |
-| **Deactivate during setup** | `./setup.sh` (default runs without Slack) |
-| **Activate post-setup** | `.venv/bin/pip install -e .[slack]` |
-| **Start Slack service (systemd)** | `podarcisnest service start --slack` (or `sudo systemctl start podarcisnest-slack`) |
-| **Stop Slack service (systemd)** | `podarcisnest service stop --slack` (or `sudo systemctl stop podarcisnest-slack`) |
-| **Disable Slack autostart** | `podarcisnest service disable --slack` (or `sudo systemctl disable podarcisnest-slack`) |
-| **Check Slack service status** | `podarcisnest service status --slack` |
-
-#### Configuration & Testing
-
 ```bash
 # 1. Check Slack configuration and knowledge base status
-podarcisnest slack status
+./bin/podarcisnest.js slack status
 
-# 2. Configure with OpenCode (default) or OpenAI-compatible server
-podarcisnest slack config \
+# 2. Configure with OpenCode, OpenAI, or Anthropic
+./bin/podarcisnest.js slack config \
   --bot-token "xoxb-..." \
   --app-token "xapp-..." \
   --provider opencode \
   --base-url "http://localhost:8000/v1" \
   --model "opencode"
 
-# (Optional: Anthropic or OpenAI cloud providers also supported)
-# podarcisnest slack config --provider anthropic --api-key sk-ant-...
-
 # 3. Test knowledge retrieval locally from terminal
-podarcisnest slack query "Summarize recent notes from the past 7 days"
+./bin/podarcisnest.js slack query "Summarize recent notes from the past 7 days"
 
-# 4. Run Slack listener in foreground (debug mode)
-podarcisnest slack start
-```
-
-> **Privacy Sandbox**: The Slack bot is strictly limited to `data/shared/wiki/` and `data/shared/sources/`. It cannot access individual user workspaces (`data/users/`).
-
-### Linux Service Management (systemd)
-
-Manage background daemons for both the web server and the Slack bot:
-
-```bash
-# Web Portal & Proxy Service
-podarcisnest service status
-podarcisnest service restart
-podarcisnest service stop
-
-# Slack Bot Daemon Service
-podarcisnest service status --slack
-podarcisnest service start --slack
-podarcisnest service stop --slack
+# 4. Run Slack listener in foreground (Socket Mode)
+./bin/podarcisnest.js slack start
 ```
 
 ---
@@ -187,50 +131,26 @@ PodarcisNest/
 │       ├── users.json     <── User registry and credential hashes
 │       └── <username>/
 │           └── workspace/ <── Isolated user Podarcis instance (mounted at /home/coder/workspace)
-│               ├── .agents/       <── Subagents (researcher, synthesizer, protocol-architect, auditor) & MCPs
-│               ├── .mcp.json      <── Model Context Protocol config for VS Code AI agents
-│               ├── AGENTS.md      <── Multi-agent rules of engagement & prompt instructions
-│               ├── wiki/          <── Dedicated user research wiki in OKF v0.2 format
-│               ├── sources/       <── Raw papers & staging ingestion queue (state.json)
-│               └── workspace/     <── User profile (profile.md) & personalized protocols
-├── podarcisnest/
-│   ├── cli.py             <── Operator CLI
-│   └── server/
-│       ├── app.py         <── Starlette reverse proxy, auth & WebSocket router
-│       ├── seeder.py      <── Podarcis wiki & .agents workspace seeder
-│       ├── user_manager.py<── Container orchestration & port allocation
-│       └── templates/     <── Web UI (login, admin dashboard)
+├── src/
+│   ├── index.ts           <── Main TypeScript module exports
+│   ├── types.ts           <── Shared types & schema definitions
+│   ├── cli/
+│   │   └── index.ts       <── Commander operator CLI
+│   ├── server/
+│   │   ├── app.ts         <── Fastify reverse proxy & WebSocket router
+│   │   ├── user-manager.ts<── Container orchestration & port allocation
+│   │   ├── seeder.ts      <── Podarcis wiki & .agents workspace seeder
+│   │   └── templates/     <── Eta web templates (login.eta, admin.eta)
+│   └── slack/
+│       ├── bot.ts         <── @slack/bolt Socket Mode bot
+│       ├── agent.ts       <── Multi-turn research agent & tool executor
+│       ├── knowledge.ts   <── Scoped shared wiki knowledge base reader
+│       └── config.ts      <── Slack token & LLM configuration
+├── bin/
+│   └── podarcisnest.js    <── Executable Node CLI launcher
 ├── Dockerfile             <── Base image with code-server, Python, uv, & Podarcis runtime
-└── setup.sh               <── Cross-platform automated setup script
+├── setup.sh               <── Automated setup script
+├── package.json           <── Node.js dependencies & scripts
+├── tsconfig.json          <── TypeScript configuration
+└── tsup.config.ts         <── Fast ESM bundler configuration
 ```
-
----
-
-## 🏗 Architecture Overview
-
-```
-Browser (User) ──> PodarcisNest Ingress Router (:8080) ──> Authenticates & Proxies
-                                                                 │
-                ┌───────────────────────────────────────────────┴───────────────────────────────────────────────┐
-                ▼                                                                                               ▼
-Container: `podarcisnest-user-alice` (:9003)                                    Container: `podarcisnest-user-bob` (:9004)
-- Podarcis Workspace: `data/users/alice/workspace`                              - Podarcis Workspace: `data/users/bob/workspace`
-  • `.agents/` (Personas, MCPs, Skills)                                           • `.agents/` (Personas, MCPs, Skills)
-  • `wiki/` (Personal OKF Research Wiki)                                          • `wiki/` (Personal OKF Research Wiki)
-  • `sources/` (Literature Queue)                                                 • `sources/` (Literature Queue)
-- Shared Knowledge Mount: `data/shared/` ──> `/home/coder/workspace/shared/`    - Shared Knowledge Mount: `data/shared/` ──> `/home/coder/workspace/shared/`
-- Runtime: VS Code Web + Python + Podarcis CLI + MCP Servers                    - Runtime: VS Code Web + Python + Podarcis CLI + MCP Servers
-```
-
----
-
-## 🦎 Salvem ses Sargantanes! (*Podarcis pityusensis*)
-
-> ### 🌿 Salvem ses Sargantanes!
-> 
-> *PodarcisNest* is named after *Podarcis*, the genus of Mediterranean wall lizards. In particular, the **Ibiza wall lizard** (*Podarcis pityusensis*), endemic to Ibiza and Formentera (*ses sargantanes*), is facing critical threats of extinction due to invasive alien snake species.
-> 
-> Support active conservation, educational, and habitat protection initiatives:
-> 
-> 👉 **[Protegim ses Sargantanes — Learn & Support Conservation Efforts](https://protegimsessargantanes.org/en/home-english/)**
-

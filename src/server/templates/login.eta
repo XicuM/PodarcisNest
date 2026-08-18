@@ -160,11 +160,11 @@
       <p class="brand-subtitle">Team Research Habitat & Workspace Hub</p>
     </div>
 
-    {% if error %}
+    <% if (it.error) { %>
     <div id="error-banner" class="error-banner">
-      {{ error }}
+      <%= it.error %>
     </div>
-    {% endif %}
+    <% } %>
 
     <div class="tabs">
       <button type="button" class="tab-btn active" id="tab-user" onclick="switchTab('user')">💻 Researcher</button>
@@ -175,14 +175,14 @@
     <form id="form-user" action="/login/user" method="POST">
       <div class="form-group">
         <label class="form-label" for="username">Username</label>
-        {% if users %}
+        <% if (it.users && it.users.length > 0) { %>
         <select id="username-select" class="form-input" style="margin-bottom: 10px;" onchange="if(this.value) document.getElementById('username').value=this.value;">
           <option value="">-- Select Registered Researcher --</option>
-          {% for u in users %}
-          <option value="{{ u.username }}">{{ u.username }} ({{ u.status }})</option>
-          {% endfor %}
+          <% it.users.forEach(function(u) { %>
+          <option value="<%= u.username %>"><%= u.username %> (<%= u.status || 'Registered' %>)</option>
+          <% }) %>
         </select>
-        {% endif %}
+        <% } %>
         <input type="text" id="username" name="username" class="form-input" placeholder="e.g. alice" required>
       </div>
 

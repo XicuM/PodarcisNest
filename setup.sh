@@ -24,7 +24,7 @@ while [[ "$#" -gt 0 ]]; do
             echo "  --no-systemd          Skip systemd service installation"
             echo "  --user-service        Install as systemd user service instead of system service"
             echo "  --no-docker           Skip Docker user image build"
-            echo "  --with-slack          Activate Slack integration (installs slack-bolt & sets up slack service)"
+            echo "  --with-slack          Activate Slack integration (flags for reminder)"
             echo "  --without-slack       Deactivate / skip Slack integration (default)"
             exit 0
             ;;
@@ -35,30 +35,35 @@ done
 
 echo "========================================="
 echo "   🦎 Installing PodarcisNest Server     "
+echo "        (TypeScript Edition)             "
 echo "========================================="
 
-# Check Python
-if ! command -v python3 &> /dev/null; then
-    echo "Error: Python 3 is required."
+# Check Node.js
+if ! command -v node &> /dev/null; then
+    echo "Error: Node.js (v20+ LTS) is required."
+    echo "Install via NodeSource or your package manager: https://nodejs.org/"
     exit 1
 fi
 
-# Set up virtual environment
-if [ ! -d "$SCRIPT_DIR/.venv" ]; then
-    echo "Creating virtual environment in $SCRIPT_DIR/.venv..."
-    python3 -m venv "$SCRIPT_DIR/.venv"
+NODE_VERSION=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
+if [ "$NODE_VERSION" -lt 20 ]; then
+    echo "Warning: Node.js version $NODE_VERSION detected. Node.js 20 or higher is recommended."
 fi
 
-echo "Installing core dependencies..."
-"$SCRIPT_DIR/.venv/bin/pip" install --upgrade pip
-
-if [ "$INSTALL_SLACK" = true ]; then
-    echo "Activating Slack integration dependencies..."
-    "$SCRIPT_DIR/.venv/bin/pip" install -e "$SCRIPT_DIR[slack]"
+# Install dependencies using pnpm or npm
+if command -v pnpm &> /dev/null; then
+    echo "Installing dependencies with pnpm..."
+    pnpm install
+    echo "Building TypeScript distribution..."
+    pnpm run build || true
 else
-    echo "Installing core server dependencies (Slack disabled by default)..."
-    "$SCRIPT_DIR/.venv/bin/pip" install -e "$SCRIPT_DIR"
+    echo "Installing dependencies with npm..."
+    npm install
+    echo "Building TypeScript distribution..."
+    npm run build || true
 fi
+
+chmod +x "$SCRIPT_DIR/bin/podarcisnest.js"
 
 # Create data directories
 mkdir -p "$SCRIPT_DIR/data/users"
@@ -93,12 +98,14 @@ fi
 if [ "$INSTALL_SYSTEMD" = true ]; then
     echo "Configuring systemd server service..."
     CURRENT_USER="$(whoami)"
-    PYTHON_BIN="$SCRIPT_DIR/.venv/bin/python"
+    NODE_BIN="$(command -v node)"
+    CLI_BIN="$SCRIPT_DIR/bin/podarcisnest.js"
 
     SERVICE_CONTENT=$(sed \
         -e "s|{{USER}}|$CURRENT_USER|g" \
         -e "s|{{INSTALL_DIR}}|$SCRIPT_DIR|g" \
-        -e "s|{{PYTHON_BIN}}|$PYTHON_BIN|g" \
+        -e "s|{{NODE_BIN}}|$NODE_BIN|g" \
+        -e "s|{{CLI_BIN}}|$CLI_BIN|g" \
         -e "s|{{PORT}}|$PORT|g" \
         "$SCRIPT_DIR/podarcisnest.service.template")
 
@@ -115,13 +122,14 @@ if [ "$INSTALL_SYSTEMD" = true ]; then
             SLACK_SERVICE_CONTENT=$(sed \
                 -e "s|{{USER}}|$CURRENT_USER|g" \
                 -e "s|{{INSTALL_DIR}}|$SCRIPT_DIR|g" \
-                -e "s|{{PYTHON_BIN}}|$PYTHON_BIN|g" \
+                -e "s|{{NODE_BIN}}|$NODE_BIN|g" \
+                -e "s|{{CLI_BIN}}|$CLI_BIN|g" \
                 "$SCRIPT_DIR/podarcisnest-slack.service.template")
             echo "$SLACK_SERVICE_CONTENT" > "$SERVICE_DIR/podarcisnest-slack.service"
             systemctl --user daemon-reload
             systemctl --user enable podarcisnest-slack
             echo "✓ Configured and enabled Slack user daemon (podarcisnest-slack.service)."
-            echo "  (Configure tokens via 'podarcisnest slack config' then start via 'systemctl --user start podarcisnest-slack')"
+            echo "  (Configure tokens via './bin/podarcisnest.js slack config' then start via 'systemctl --user start podarcisnest-slack')"
         fi
     else
         TMP_SERVICE="/tmp/podarcisnest.service"
@@ -137,7 +145,8 @@ if [ "$INSTALL_SYSTEMD" = true ]; then
                 SLACK_SERVICE_CONTENT=$(sed \
                     -e "s|{{USER}}|$CURRENT_USER|g" \
                     -e "s|{{INSTALL_DIR}}|$SCRIPT_DIR|g" \
-                    -e "s|{{PYTHON_BIN}}|$PYTHON_BIN|g" \
+                    -e "s|{{NODE_BIN}}|$NODE_BIN|g" \
+                    -e "s|{{CLI_BIN}}|$CLI_BIN|g" \
                     "$SCRIPT_DIR/podarcisnest-slack.service.template")
                 TMP_SLACK="/tmp/podarcisnest-slack.service"
                 echo "$SLACK_SERVICE_CONTENT" > "$TMP_SLACK"
@@ -145,7 +154,7 @@ if [ "$INSTALL_SYSTEMD" = true ]; then
                 sudo systemctl daemon-reload
                 sudo systemctl enable podarcisnest-slack
                 echo "✓ Configured and enabled Slack daemon (podarcisnest-slack.service)."
-                echo "  (Configure tokens via 'podarcisnest slack config' then start via 'sudo systemctl start podarcisnest-slack')"
+                echo "  (Configure tokens via './bin/podarcisnest.js slack config' then start via 'sudo systemctl start podarcisnest-slack')"
             fi
         else
             echo "Warning: sudo not found. Please copy $TMP_SERVICE to /etc/systemd/system/podarcisnest.service manually."
@@ -165,14 +174,14 @@ echo ""
 echo "Slack Integration Status:"
 if [ "$INSTALL_SLACK" = true ]; then
     echo "  Status: ACTIVATED"
-    echo "  Next steps: Configure tokens with '$SCRIPT_DIR/.venv/bin/podarcisnest slack config'"
+    echo "  Next steps: Configure tokens with '$SCRIPT_DIR/bin/podarcisnest.js slack config'"
 else
-    echo "  Status: DEACTIVATED (Default)"
-    echo "  To activate later: Run './setup.sh --with-slack' or 'pip install -e .[slack]'"
+    echo "  Status: READY"
+    echo "  Configure tokens with '$SCRIPT_DIR/bin/podarcisnest.js slack config'"
 fi
 echo ""
 echo "Debug CLI commands:"
-echo "  $SCRIPT_DIR/.venv/bin/podarcisnest status"
-echo "  $SCRIPT_DIR/.venv/bin/podarcisnest user list"
-echo "  $SCRIPT_DIR/.venv/bin/podarcisnest slack status"
+echo "  $SCRIPT_DIR/bin/podarcisnest.js status"
+echo "  $SCRIPT_DIR/bin/podarcisnest.js user list"
+echo "  $SCRIPT_DIR/bin/podarcisnest.js slack status"
 echo "========================================="

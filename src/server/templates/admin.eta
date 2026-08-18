@@ -194,26 +194,32 @@
           </tr>
         </thead>
         <tbody>
-          {% for user in users %}
-          <tr>
-            <td><strong>{{ user.username }}</strong></td>
-            <td><span class="badge badge-success">{{ user.status or 'Active' }}</span></td>
-            <td>{{ user.port or '—' }}</td>
-            <td>
-              {% if user.role == 'admin' %}
-              <span class="badge badge-warning">Admin</span>
-              {% else %}
-              <span style="color: var(--text-muted);">Researcher</span>
-              {% endif %}
-            </td>
-            <td class="action-btns">
-              {% if user.username != 'admin' %}
-              <button class="btn" style="background: rgba(41, 184, 219, 0.15); color: var(--accent-cyan);" onclick="reseedUser('{{ user.username }}')">🌱 Seed Podarcis</button>
-              <button class="btn btn-danger" onclick="deleteUser('{{ user.username }}')">Delete</button>
-              {% endif %}
-            </td>
-          </tr>
-          {% endfor %}
+          <% if (it.users && it.users.length > 0) { %>
+            <% it.users.forEach(function(user) { %>
+            <tr>
+              <td><strong><%= user.username %></strong></td>
+              <td><span class="badge badge-success"><%= user.status || 'Active' %></span></td>
+              <td><%= user.port || '—' %></td>
+              <td>
+                <% if (user.role === 'admin') { %>
+                <span class="badge badge-warning">Admin</span>
+                <% } else { %>
+                <span style="color: var(--text-muted);">Researcher</span>
+                <% } %>
+              </td>
+              <td class="action-btns">
+                <% if (user.username !== 'admin') { %>
+                <button class="btn" style="background: rgba(41, 184, 219, 0.15); color: var(--accent-cyan);" onclick="reseedUser('<%= user.username %>')">🌱 Seed Podarcis</button>
+                <button class="btn btn-danger" onclick="deleteUser('<%= user.username %>')">Delete</button>
+                <% } %>
+              </td>
+            </tr>
+            <% }) %>
+          <% } else { %>
+            <tr>
+              <td colspan="5" style="text-align: center; color: var(--text-muted);">No users registered yet.</td>
+            </tr>
+          <% } %>
         </tbody>
       </table>
     </div>
