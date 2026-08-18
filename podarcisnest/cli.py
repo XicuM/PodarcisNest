@@ -274,7 +274,7 @@ def cmd_slack(args):
 
 
 def main():
-    parser = argparse.ArgumentParser(prog="podarcisnest", description="PodarcisNest Multi-User Habitat CLI")
+    parser = argparse.ArgumentParser(prog="podarcisnest", description="Multi-User LLM Wiki Server Infrastructure")
     subparsers = parser.add_subparsers(dest="command")
 
     # status

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "podarcisnest"
 version = "0.1.0"
-description = "PodarcisNest — Multi-User Research Habitat, Dynamic Reverse Proxy, and VS Code Web Orchestrator for Podarcis"
+description = "Multi-User LLM Wiki Server Infrastructure"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
