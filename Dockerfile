@@ -19,8 +19,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install uv package manager
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
+ENV PIP_BREAK_SYSTEM_PACKAGES=1
+
 # Install Podarcis & MCP dependencies into system Python
-RUN uv pip install --system --no-cache \
+RUN uv pip install --system --break-system-packages --no-cache \
     "mcp[cli]>=1.0.0,<2.0.0" \
     "rich>=13.7.0" \
     "questionary" \
@@ -37,9 +39,9 @@ RUN uv pip install --system --no-cache \
 ARG PODARCIS_REF=master
 
 # Install podarcis CLI package from authoritative repository
-RUN uv pip install --system --no-cache \
+RUN uv pip install --system --break-system-packages --no-cache \
     "git+https://github.com/XicuM/Podarcis.git@${PODARCIS_REF}" || \
-    pip3 install --no-cache-dir "git+https://github.com/XicuM/Podarcis.git@${PODARCIS_REF}" || true
+    pip3 install --break-system-packages --no-cache-dir "git+https://github.com/XicuM/Podarcis.git@${PODARCIS_REF}" || true
 
 # Ensure workspace and code-server directories exist
 RUN mkdir -p /home/coder/workspace && \
