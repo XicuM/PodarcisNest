@@ -11,6 +11,13 @@ It provides teams with:
 
 ---
 
+## 🦎 Podarcis Ecosystem
+
+* **[Podarcis](https://github.com/XicuM/Podarcis)**: The core research engine, FastMCP gateway (`podarcis-mcp`), and autonomous multi-agent pipeline (`@researcher`, `@synthesizer`, `@protocol-architect`, `@auditor`).
+* **[PodarcisNest](https://github.com/XicuM/PodarcisLab)** (This Repo): The multi-user server infrastructure, reverse proxy, container workspace manager, and Slack research agent.
+
+---
+
 ## 📋 Prerequisites
 
 * **Python**: `3.10` or newer
