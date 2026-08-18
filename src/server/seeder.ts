@@ -1,5 +1,7 @@
 import path from 'path';
 import fs from 'fs-extra';
+import os from 'os';
+import { spawnSync } from 'child_process';
 
 export const DEFAULT_MCP_JSON = {
   mcpServers: {
@@ -91,6 +93,144 @@ The coordination is asynchronous, mediated by the file structure:
 * **Cross-References**: Use relative markdown links (\`[Text](../path.md)\`). Unlinked mentions or \`[[wikilinks]]\` are forbidden.
 `;
 
+export const RESEARCHER_MD = `---
+description: Discovers peer-reviewed literature and stages raw sources. Use when you need to search for academic papers, download them, and enqueue them for synthesis in sources/state.json.
+mode: subagent
+permission:
+  edit: allow
+  bash:
+    "*": allow
+    "git push *": ask
+  webfetch: deny
+---
+
+# Role: Literature Researcher
+
+You are the **Researcher** in the Agentic Wiki Builder pipeline. Your sole responsibility is to discover peer-reviewed literature, download it, extract text via \`markitdown\`, and stage the raw sources in \`sources/\`. You do NOT synthesize into the wiki — that is the Synthesizer subagent's job.
+
+## Workflow
+
+1. **Search**: Use \`research-mcp_search_literature\` to find papers matching the query. Prefer PubMed and Semantic Scholar providers.
+2. **Download & Extract**: Use \`research-mcp_download_paper\` to fetch the PDF, extract text via markitdown, write metadata, and enqueue in \`sources/state.json\`. This tool handles the full pipeline automatically.
+3. **Queue Management**: Use \`research-mcp_queue_list\` to review pending items and \`research-mcp_queue_enqueue\` to add items manually if needed.
+4. **Verify**: Confirm each downloaded paper has a valid \`raw.md\` with substantive content (not a stub). If extraction failed, do NOT enqueue it — report the failure.
+5. **Diagnostic Logging**: If paper retrieval fails, tool errors occur, user corrections are received, or research results fail to meet user expectations, immediately invoke \`log_pain_point\` (\`diagnostics-mcp\`) to log the issue into \`.podarcis/diagnostics/pain_points.jsonl\`.
+
+## Conventions
+
+- **No Fabrication**: Never invent sources, quotes, or metadata. If a source cannot be found or downloaded, report it honestly.
+- **No Web Search**: Use only \`research-mcp_search_literature\`. Never search the web directly.
+- **Document Conversion**: Always rely on the built-in \`markitdown\` pipeline inside \`research-mcp_download_paper\`. Do not write ad-hoc PDF parsing scripts.
+- **Anonymization**: Ensure all staged metadata and summaries are objective. Never include user-specific data.
+- **Filnaming**: Use \`snake_case\` for all filenames.
+`;
+
+export const SYNTHESIZER_MD = `---
+description: Ingests raw sources from sources/state.json or Google Drive and compiles objective knowledge into the wiki/ knowledge base.
+mode: subagent
+model: gemini-3.6-flash
+permission:
+  edit: allow
+  bash:
+    "*": allow
+    "git push *": ask
+  webfetch: deny
+---
+
+# Role: Synthesizer Agent (\`podarcis:synthesizer/gemini-3.6-flash\`)
+
+You are the **Synthesizer** in the Podarcis knowledge architecture. Your sole responsibility is to consume extracted Markdown documents from \`sources/state.json\` (or Google Drive), decide how to structure the knowledge, read related wiki articles, and update \`wiki/\` accordingly following the **Open Knowledge Format (OKF v0.2)** specification.
+
+## Active Skill Check
+
+Before starting synthesis, check \`.podarcis/state.yaml\` or \`.podarcis/config.yaml\` for \`sources_backend\`:
+
+| \`sources_backend\` | Active skill to read and follow |
+|---|---|
+| \`gdrive\` (default) | \`.agents/skills/synthesizer-gdrive/SKILL.md\` |
+| \`local\` | \`.agents/skills/synthesizer-local/SKILL.md\` |
+
+## Workflow
+
+1. **Manifest & Queue Discovery**: Call \`research-mcp_queue_list(status='pending')\` to retrieve pending source items. Read the corresponding raw source files and target directory \`_index.md\` files.
+2. **Synthesize into \`wiki/\`**:
+   - **Content Rules**: Document findings, context/limitations, and conflicting evidence. Use callouts (\`> ⚠️\`) for confidence markers.
+   - **ANONYMIZATION**: Never include user-specific data in \`wiki/\`. All wiki pages must be objective and anonymized.
+   - **OKF v0.2 Frontmatter**: Every wiki page MUST start with valid YAML frontmatter containing \`type\`, \`title\`, \`description\`, \`category\`, \`rationale\`, \`generated\`, \`status: draft\`, and \`sources\`.
+   - **Citations & Footnotes**: Footnote statements using \`markdown-it\` footnotes keyed to frontmatter source IDs (e.g. \`[^smith2024]\`).
+   - **Links**: Use relative markdown links (\`[Text](../path.md)\`).
+3. **Multi-Agent Verification & Critique Loop**:
+   - Submit updated wiki file paths to the \`@auditor\` subagent for automated machine verification.
+   - **Remediation Handling**: If \`@auditor\` returns a \`FAILED\` verdict, immediately apply surgical fixes. Re-submit to \`@auditor\` until \`verified:\` sign-off is achieved.
+`;
+
+export const PROTOCOL_ARCHITECT_MD = `---
+description: Translates Wiki findings and user profile constraints into step-by-step, personalized protocols and deliverables in workspace/. Use when the user wants actionable recommendations backed by wiki knowledge.
+mode: subagent
+permission:
+  edit: allow
+  bash:
+    "*": allow
+    "git push *": ask
+  webfetch: deny
+---
+
+# Role: Protocol Architect (\`podarcis:protocol_architect\`)
+
+You are the **Protocol Architect** in the Podarcis knowledge architecture. Your responsibility is to adapt objective Wiki knowledge into personalized, step-by-step, actionable protocols, roadmaps, and deliverables in \`workspace/\` tailored to the user's profile, goals, and constraints. You cite the Wiki for backing but keep the protocol itself free of scientific justifications.
+
+## Workflow
+
+1. **Scope & Profile**: Read \`workspace/profile.md\` for goals, constraints, and physiological parameters. Ask the user for missing critical context, then update the profile.
+2. **Research & Science**: Read the target wiki directory's \`_index.md\` to survey available pages. If critical data is missing, invoke the **Researcher** (\`@researcher\`) or **Synthesizer** (\`@synthesizer\`) subagent first.
+3. **Build Protocol**: Create or update \`workspace/protocols/<topic>.md\`:
+   - Provide **strictly actionable**, step-by-step instructions only.
+   - **No justifications**: Do not explain "why" within the protocol body (the Wiki contains the scientific evidence).
+   - **Citations**: Cite every action/parameter via footnotes (\`[^wiki_ref_1]\`) linking to the relevant wiki page.
+   - **YAML Frontmatter**: Every protocol must conform to OKF v0.2 frontmatter.
+   - **Links**: Use relative markdown links.
+4. **Multi-Agent Verification & Linting**:
+   - Ensure all citations resolve to existing \`wiki/\` files.
+   - Add protocol to \`workspace/protocols/_index.md\` and hand off to \`@auditor\` for verification.
+`;
+
+export const AUDITOR_MD = `---
+description: Runs automated validation, audits citation integrity, checks link structures, and fact-checks claims against wiki and literature.
+mode: subagent
+model: gemini-3.6-flash
+permission:
+  edit: allow
+  bash:
+    "*": allow
+    "git push *": ask
+  webfetch: deny
+---
+
+# Role: Auditor Agent (\`podarcis:auditor/gemini-3.6-flash\`)
+
+You are the **Auditor** agent in the Podarcis knowledge architecture. Your responsibility is to perform independent machine verification of documents created by generator agents (\`@synthesizer\`, \`@protocol-architect\`) in \`wiki/\` and \`workspace/\`. You validate citations, check link structures, detect stubs, and fact-check claims against the evidence base.
+
+## Workflow
+
+### 1. Lint & Structural Audit
+1. Run \`podarcis lint\` or check for:
+   - Broken links (dangling references to nonexistent files)
+   - Missing or unused footnotes
+   - Directory bloat (>15 content files)
+   - Missing or malformed YAML frontmatter
+   - Missing \`_index.md\` files
+
+### 2. Evidence Audit
+1. Check that every citation footnote resolves to an existing source file in \`sources/\` or \`sources/literature/\`.
+2. Flag any wiki pages that cite sources with \`status: stub\` or failed extraction.
+
+### 3. Machine Verification Sign-off & Critic-Generator Feedback Loop
+* **If all audit steps PASS**:
+  - Append an entry to \`verified:\` frontmatter list and mark \`status: stable\`.
+* **If any audit step FAILS**:
+  - Output structured **Remediation Payload** and hand off to generator agent to fix.
+`;
+
 export function findTemplateSource(rootDir: string): string | null {
   const envTemplate = process.env.PODARCIS_TEMPLATE_DIR;
   if (envTemplate && fs.existsSync(envTemplate)) {
@@ -99,17 +239,61 @@ export function findTemplateSource(rootDir: string): string | null {
 
   const candidates = [
     path.join(rootDir, 'data', 'templates', 'podarcis'),
+    path.join(rootDir, 'templates', 'podarcis'),
     path.join(path.dirname(rootDir), 'Podarcis'),
+    path.join(rootDir, '..', 'Podarcis'),
+    path.join(os.homedir(), 'Projects', 'Podarcis'),
+    path.join(os.homedir(), 'Podarcis'),
+    '/home/xicu/Projects/Podarcis',
     path.join(rootDir, 'templates', 'workspace_template'),
     path.join(rootDir, 'src', 'server', 'templates', 'workspace_template'),
   ];
 
   for (const cand of candidates) {
-    if (fs.existsSync(cand) && fs.existsSync(path.join(cand, '.agents'))) {
-      return cand;
+    if (fs.existsSync(cand) && (fs.existsSync(path.join(cand, '.agents')) || fs.existsSync(path.join(cand, 'AGENTS.md')))) {
+      return path.resolve(cand);
     }
   }
   return null;
+}
+
+export function syncTemplates(rootDir: string): boolean {
+  const targetDir = path.join(rootDir, 'data', 'templates', 'podarcis');
+  fs.ensureDirSync(path.dirname(targetDir));
+
+  // Check local projects directory first
+  const localCandidates = [
+    path.join(os.homedir(), 'Projects', 'Podarcis'),
+    path.join(path.dirname(rootDir), 'Podarcis'),
+    '/home/xicu/Projects/Podarcis',
+  ];
+
+  for (const local of localCandidates) {
+    if (fs.existsSync(local) && fs.existsSync(path.join(local, '.agents'))) {
+      fs.ensureDirSync(targetDir);
+      fs.copySync(local, targetDir, {
+        overwrite: true,
+        filter: (src) => {
+          const base = path.basename(src);
+          return !['.git', '.venv', '__pycache__', 'node_modules', 'logs', 'token_cache.json', 'data'].includes(base) && !base.endsWith('.pyc');
+        },
+      });
+      return true;
+    }
+  }
+
+  // Fallback to git clone / pull
+  if (fs.existsSync(path.join(targetDir, '.git'))) {
+    const res = spawnSync('git', ['pull'], { cwd: targetDir, encoding: 'utf-8', timeout: 30000 });
+    return res.status === 0;
+  } else {
+    fs.removeSync(targetDir);
+    const res = spawnSync('git', ['clone', '--depth', '1', 'https://github.com/XicuM/Podarcis.git', targetDir], {
+      encoding: 'utf-8',
+      timeout: 60000,
+    });
+    return res.status === 0;
+  }
 }
 
 export function seedUserWorkspace(workspaceDir: string, username: string, rootDir?: string): void {
@@ -119,19 +303,22 @@ export function seedUserWorkspace(workspaceDir: string, username: string, rootDi
   const templateSrc = findTemplateSource(resolvedRoot);
 
   if (templateSrc && fs.existsSync(templateSrc)) {
-    const itemsToCopy = ['.agents', '.podarcis', '.clinerules', '.mcp.json', 'AGENTS.md', 'opencode.json'];
+    const itemsToCopy = ['.agents', '.podarcis', '.clinerules', '.mcp.json', 'AGENTS.md', 'opencode.json', 'pyproject.toml'];
     for (const item of itemsToCopy) {
       const srcPath = path.join(templateSrc, item);
       const dstPath = path.join(workspaceDir, item);
-      if (fs.existsSync(srcPath) && !fs.existsSync(dstPath)) {
+      if (fs.existsSync(srcPath)) {
         if (fs.statSync(srcPath).isDirectory()) {
+          fs.ensureDirSync(dstPath);
           fs.copySync(srcPath, dstPath, {
+            overwrite: false,
+            errorOnExist: false,
             filter: (src) => {
               const base = path.basename(src);
               return !['.git', '.venv', '__pycache__', 'node_modules', 'logs', 'token_cache.json'].includes(base) && !base.endsWith('.pyc');
             },
           });
-        } else {
+        } else if (!fs.existsSync(dstPath)) {
           fs.copyFileSync(srcPath, dstPath);
         }
       }
@@ -145,6 +332,28 @@ export function seedUserWorkspace(workspaceDir: string, username: string, rootDi
   fs.ensureDirSync(path.join(workspaceDir, 'workspace', 'profile'));
   fs.ensureDirSync(path.join(workspaceDir, '.podarcis', 'logs'));
   fs.ensureDirSync(path.join(workspaceDir, '.agents', 'agents'));
+  fs.ensureDirSync(path.join(workspaceDir, '.agents', 'skills'));
+
+  // Scaffold subagents if missing
+  const researcherFile = path.join(workspaceDir, '.agents', 'agents', 'researcher.md');
+  if (!fs.existsSync(researcherFile)) {
+    fs.writeFileSync(researcherFile, RESEARCHER_MD, 'utf-8');
+  }
+
+  const synthesizerFile = path.join(workspaceDir, '.agents', 'agents', 'synthesizer.md');
+  if (!fs.existsSync(synthesizerFile)) {
+    fs.writeFileSync(synthesizerFile, SYNTHESIZER_MD, 'utf-8');
+  }
+
+  const protocolFile = path.join(workspaceDir, '.agents', 'agents', 'protocol-architect.md');
+  if (!fs.existsSync(protocolFile)) {
+    fs.writeFileSync(protocolFile, PROTOCOL_ARCHITECT_MD, 'utf-8');
+  }
+
+  const auditorFile = path.join(workspaceDir, '.agents', 'agents', 'auditor.md');
+  if (!fs.existsSync(auditorFile)) {
+    fs.writeFileSync(auditorFile, AUDITOR_MD, 'utf-8');
+  }
 
   // Scaffold AGENTS.md
   const agentsMd = path.join(workspaceDir, 'AGENTS.md');
@@ -219,7 +428,19 @@ export function seedUserWorkspace(workspaceDir: string, username: string, rootDi
     );
   }
 
-  // Symlink .opencode/agents
+  // Scaffold workspace/protocols/_index.md
+  const protocolsIndex = path.join(workspaceDir, 'workspace', 'protocols', '_index.md');
+  if (!fs.existsSync(protocolsIndex)) {
+    fs.writeFileSync(
+      protocolsIndex,
+      `# Protocols Index\n\n` +
+      `Personalized, actionable protocols generated from verified Wiki knowledge.\n\n` +
+      `## Active Protocols\n`,
+      'utf-8'
+    );
+  }
+
+  // Symlink .opencode/agents -> ../.agents/agents
   const opencodeDir = path.join(workspaceDir, '.opencode');
   fs.ensureDirSync(opencodeDir);
   const opencodeAgentsLink = path.join(opencodeDir, 'agents');
@@ -228,7 +449,10 @@ export function seedUserWorkspace(workspaceDir: string, username: string, rootDi
     try {
       fs.symlinkSync('../.agents/agents', opencodeAgentsLink, 'dir');
     } catch {
-      // Ignore symlink errors
+      // Fallback to copy if symlink unsupported
+      try {
+        fs.copySync(targetAgentsDir, opencodeAgentsLink);
+      } catch {}
     }
   }
 }

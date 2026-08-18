@@ -5,7 +5,7 @@ import path from 'path';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { UserManager } from '../server/user-manager.js';
-import { seedUserWorkspace } from '../server/seeder.js';
+import { seedUserWorkspace, syncTemplates } from '../server/seeder.js';
 import { createServer } from '../server/app.js';
 import { SlackConfig } from '../slack/config.js';
 import { ScopedKnowledgeBase } from '../slack/knowledge.js';
@@ -250,30 +250,17 @@ userCmd
 // Sync Templates
 program
   .command('sync-templates')
-  .description('Sync authoritative Podarcis templates from git repository')
+  .description('Sync authoritative Podarcis templates from local repository or git')
   .option('--repo-url <url>', 'Git repository URL', 'https://github.com/XicuM/Podarcis.git')
   .option('--branch <branch>', 'Git branch to sync', 'master')
   .action((opts) => {
     const targetDir = path.join(rootDir, 'data', 'templates', 'podarcis');
-    console.log(chalk.cyan(`Syncing Podarcis template assets from ${opts.repoUrl} (${opts.branch})...`));
-
-    const gitCheck = path.join(targetDir, '.git');
-    if (spawnSync('test', ['-d', gitCheck]).status === 0) {
-      const res = spawnSync('git', ['-C', targetDir, 'pull', 'origin', opts.branch], { encoding: 'utf-8' });
-      if (res.status === 0) {
-        console.log(chalk.bold.green(`✓ Successfully updated templates in ${targetDir}`));
-      } else {
-        console.error(chalk.bold.red('Failed to update templates:'), res.stderr);
-      }
+    console.log(chalk.cyan(`Syncing Podarcis template assets to ${targetDir}...`));
+    const ok = syncTemplates(rootDir);
+    if (ok) {
+      console.log(chalk.bold.green(`✓ Successfully synchronized templates in ${targetDir}`));
     } else {
-      const res = spawnSync('git', ['clone', '--depth', '1', '--branch', opts.branch, opts.repoUrl, targetDir], {
-        encoding: 'utf-8',
-      });
-      if (res.status === 0) {
-        console.log(chalk.bold.green(`✓ Successfully cloned templates to ${targetDir}`));
-      } else {
-        console.error(chalk.bold.red('Failed to clone templates:'), res.stderr);
-      }
+      console.error(chalk.bold.red(`Failed to sync templates.`));
     }
   });
 

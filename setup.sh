@@ -65,6 +65,10 @@ fi
 
 chmod +x "$SCRIPT_DIR/bin/podarcisnest.js"
 
+# Synchronize Podarcis workspace templates (.agents, skills, mcp)
+echo "Synchronizing Podarcis workspace templates..."
+"$SCRIPT_DIR/bin/podarcisnest.js" sync-templates || true
+
 # Create data directories
 mkdir -p "$SCRIPT_DIR/data/users"
 mkdir -p "$SCRIPT_DIR/data/shared/wiki"
