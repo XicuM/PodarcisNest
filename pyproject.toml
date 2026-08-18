@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "podarcislab"
+name = "podarcisnest"
 version = "0.1.0"
-description = "Multi-User Research Hub, Dynamic Reverse Proxy, and VS Code Web Orchestrator"
+description = "PodarcisNest — Multi-User Research Habitat, Dynamic Reverse Proxy, and VS Code Web Orchestrator for Podarcis"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -36,10 +36,10 @@ all = [
 ]
 
 [project.scripts]
-podarcislab = "podarcislab.cli:main"
+podarcisnest = "podarcisnest.cli:main"
+nest = "podarcisnest.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["podarcislab*"]
+include = ["podarcisnest*"]
 exclude = ["data*"]
-

@@ -32,7 +32,7 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 echo "========================================="
-echo "   🔬 Installing PodarcisLab Server      "
+echo "   🦎 Installing PodarcisNest Server     "
 echo "========================================="
 
 # Check Python
@@ -51,7 +51,7 @@ echo "Installing core dependencies..."
 "$SCRIPT_DIR/.venv/bin/pip" install --upgrade pip
 
 if [ "$INSTALL_SLACK" = true ]; then
-    echo "Installing PodarcisLab with Slack integration..."
+    echo "Installing PodarcisNest with Slack integration..."
     "$SCRIPT_DIR/.venv/bin/pip" install -e "$SCRIPT_DIR[slack]"
 else
     "$SCRIPT_DIR/.venv/bin/pip" install -e "$SCRIPT_DIR"
@@ -65,8 +65,8 @@ mkdir -p "$SCRIPT_DIR/data/shared/sources"
 # Build Docker user image
 if [ "$BUILD_DOCKER" = true ]; then
     if command -v docker &> /dev/null; then
-        echo "Building / verifying Docker user image (podarcislab-user:latest)..."
-        docker build -t podarcislab-user:latest "$SCRIPT_DIR"
+        echo "Building / verifying Docker user image (podarcisnest-user:latest)..."
+        docker build -t podarcisnest-user:latest "$SCRIPT_DIR"
     else
         echo "Warning: Docker is not installed or not in PATH. Skipping image build."
     fi
@@ -96,34 +96,34 @@ if [ "$INSTALL_SYSTEMD" = true ]; then
         -e "s|{{INSTALL_DIR}}|$SCRIPT_DIR|g" \
         -e "s|{{PYTHON_BIN}}|$PYTHON_BIN|g" \
         -e "s|{{PORT}}|$PORT|g" \
-        "$SCRIPT_DIR/podarcislab.service.template")
+        "$SCRIPT_DIR/podarcisnest.service.template")
 
     if [ "$USER_SERVICE" = true ]; then
         SERVICE_DIR="$HOME/.config/systemd/user"
         mkdir -p "$SERVICE_DIR"
-        echo "$SERVICE_CONTENT" > "$SERVICE_DIR/podarcislab.service"
+        echo "$SERVICE_CONTENT" > "$SERVICE_DIR/podarcisnest.service"
         systemctl --user daemon-reload
-        systemctl --user enable podarcislab
-        systemctl --user restart podarcislab
-        echo "✓ Enabled and started systemd user service (podarcislab)."
+        systemctl --user enable podarcisnest
+        systemctl --user restart podarcisnest
+        echo "✓ Enabled and started systemd user service (podarcisnest)."
     else
-        TMP_SERVICE="/tmp/podarcislab.service"
+        TMP_SERVICE="/tmp/podarcisnest.service"
         echo "$SERVICE_CONTENT" > "$TMP_SERVICE"
         if command -v sudo &> /dev/null; then
-            sudo cp "$TMP_SERVICE" /etc/systemd/system/podarcislab.service
+            sudo cp "$TMP_SERVICE" /etc/systemd/system/podarcisnest.service
             sudo systemctl daemon-reload
-            sudo systemctl enable podarcislab
-            sudo systemctl restart podarcislab
-            echo "✓ Enabled and started systemd service (podarcislab)."
+            sudo systemctl enable podarcisnest
+            sudo systemctl restart podarcisnest
+            echo "✓ Enabled and started systemd service (podarcisnest)."
         else
-            echo "Warning: sudo not found. Please copy $TMP_SERVICE to /etc/systemd/system/podarcislab.service manually."
+            echo "Warning: sudo not found. Please copy $TMP_SERVICE to /etc/systemd/system/podarcisnest.service manually."
         fi
     fi
 fi
 
 echo ""
 echo "========================================="
-echo "   ✓ PodarcisLab Setup Complete!         "
+echo "   ✓ PodarcisNest Setup Complete!        "
 echo "========================================="
 echo "Web Portal: http://localhost:$PORT/login"
 echo "Default Admin Credentials:"
@@ -131,7 +131,7 @@ echo "  Username: admin"
 echo "  Password: admin"
 echo ""
 echo "Debug CLI commands:"
-echo "  $SCRIPT_DIR/.venv/bin/podarcislab status"
-echo "  $SCRIPT_DIR/.venv/bin/podarcislab user list"
-echo "  $SCRIPT_DIR/.venv/bin/podarcislab slack status"
+echo "  $SCRIPT_DIR/.venv/bin/podarcisnest status"
+echo "  $SCRIPT_DIR/.venv/bin/podarcisnest user list"
+echo "  $SCRIPT_DIR/.venv/bin/podarcisnest slack status"
 echo "========================================="

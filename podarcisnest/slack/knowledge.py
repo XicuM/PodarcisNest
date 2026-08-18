@@ -142,7 +142,6 @@ class ScopedKnowledgeBase:
 
     def read_shared_note(self, relative_path: str, max_chars: int = 6000) -> Dict[str, Any]:
         """Read content of a note inside shared/wiki/ or shared/sources/."""
-        # Strip leading slashes
         clean_rel = relative_path.lstrip("/").strip()
         target_path = self.shared_dir / clean_rel
         safe_path = self._assert_safe_path(target_path)

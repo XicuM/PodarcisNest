@@ -1,4 +1,4 @@
-"""Slack Bolt Socket Mode bot listener for PodarcisLab."""
+"""Slack Bolt Socket Mode bot listener for PodarcisNest."""
 
 import logging
 import re
@@ -6,10 +6,10 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from podarcislab.slack.agent import PodarcisResearchAgent
-from podarcislab.slack.config import SlackConfig
+from podarcisnest.slack.agent import PodarcisResearchAgent
+from podarcisnest.slack.config import SlackConfig
 
-logger = logging.getLogger("podarcislab.slack")
+logger = logging.getLogger("podarcisnest.slack")
 
 
 def setup_slack_logger(root_dir: Path) -> logging.Logger:
@@ -38,14 +38,7 @@ def setup_slack_logger(root_dir: Path) -> logging.Logger:
 
 
 def to_slack_mrkdwn(text: str) -> str:
-    """Convert standard CommonMark/GitHub Markdown to Slack mrkdwn format.
-    
-    Slack differences:
-    - Bold: `*bold*` (not `**bold**`)
-    - Links: `<url|text>` (not `[text](url)`)
-    - Headers: `# Heading` -> `*Heading*` (Slack has no hash headings)
-    - Strikethrough: `~strike~` (not `~~strike~~`)
-    """
+    """Convert standard CommonMark/GitHub Markdown to Slack mrkdwn format."""
     if not text:
         return text
 

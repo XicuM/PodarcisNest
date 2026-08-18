@@ -1,4 +1,4 @@
-# Dockerfile for PodarcisLab User Container (VS Code Web / code-server + Python + Agent Runtimes)
+# Dockerfile for PodarcisNest User Container (VS Code Web / code-server + Python + Agent Runtimes)
 FROM codercom/code-server:latest
 
 USER root
@@ -52,5 +52,5 @@ RUN code-server --install-extension yzhang.markdown-all-in-one || true
 
 EXPOSE 8000
 
-# Start code-server without password auth (auth is handled by PodarcisLab dynamic router)
+# Start code-server without password auth (auth is handled by PodarcisNest dynamic router)
 CMD ["code-server", "--bind-addr", "0.0.0.0:8000", "--auth", "none", "/home/coder/workspace"]

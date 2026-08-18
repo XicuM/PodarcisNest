@@ -1,4 +1,4 @@
-"""Configuration management for PodarcisLab Slack bot."""
+"""Configuration management for PodarcisNest Slack bot."""
 
 import json
 import os
@@ -85,4 +85,3 @@ class SlackConfig:
     def is_configured(self) -> bool:
         """Check whether minimum required tokens and keys are present."""
         return bool(self.slack_bot_token and self.slack_app_token)
-

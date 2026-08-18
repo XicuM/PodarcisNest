@@ -1,4 +1,4 @@
-"""PodarcisLab Debug & Maintenance CLI."""
+"""PodarcisNest Debug & Maintenance CLI."""
 
 import argparse
 import os
@@ -9,8 +9,8 @@ from pathlib import Path
 from rich.console import Console
 from rich.table import Table
 
-from podarcislab.server.user_manager import UserManager
-from podarcislab.server.seeder import seed_user_workspace
+from podarcisnest.server.user_manager import UserManager
+from podarcisnest.server.seeder import seed_user_workspace
 
 console = Console()
 root_dir = Path(__file__).resolve().parent.parent
@@ -18,12 +18,12 @@ root_dir = Path(__file__).resolve().parent.parent
 
 def cmd_status(args):
     """Check service status and active containers."""
-    console.print("[bold cyan]PodarcisLab Status[/bold cyan]\n")
+    console.print("[bold cyan]🦎 PodarcisNest Status[/bold cyan]\n")
 
     # Check systemd status
     import shutil
     if shutil.which("systemctl"):
-        res = subprocess.run(["systemctl", "is-active", "podarcislab"], capture_output=True, text=True)
+        res = subprocess.run(["systemctl", "is-active", "podarcisnest"], capture_output=True, text=True)
         state = res.stdout.strip() if res.returncode == 0 else "inactive / not-installed"
         color = "green" if state == "active" else "yellow"
         console.print(f"Systemd Service: [{color}]{state}[/{color}]")
@@ -56,8 +56,8 @@ def cmd_status(args):
 def cmd_run(args):
     """Run server in foreground for debugging."""
     import uvicorn
-    console.print(f"[bold green]Starting PodarcisLab server on http://{args.host}:{args.port} (Foreground Debug Mode)[/bold green]")
-    uvicorn.run("podarcislab.server.app:app", host=args.host, port=args.port, reload=args.reload)
+    console.print(f"[bold green]Starting PodarcisNest server on http://{args.host}:{args.port} (Foreground Debug Mode)[/bold green]")
+    uvicorn.run("podarcisnest.server.app:app", host=args.host, port=args.port, reload=args.reload)
 
 
 def cmd_user(args):
@@ -194,26 +194,26 @@ def cmd_sync_templates(args):
 def cmd_service(args):
     """Control systemctl service."""
     action = args.service_action
-    console.print(f"Executing: systemctl {action} podarcislab...")
-    res = subprocess.run(["systemctl", action, "podarcislab"])
+    console.print(f"Executing: systemctl {action} podarcisnest...")
+    res = subprocess.run(["systemctl", action, "podarcisnest"])
     if res.returncode == 0:
-        console.print(f"[bold green]✓ Successfully executed {action} on podarcislab.service[/bold green]")
+        console.print(f"[bold green]✓ Successfully executed {action} on podarcisnest.service[/bold green]")
     else:
-        console.print(f"[bold red]Failed to {action} podarcislab.service (try with sudo or check journalctl)[/bold red]")
+        console.print(f"[bold red]Failed to {action} podarcisnest.service (try with sudo or check journalctl)[/bold red]")
 
 
 def cmd_slack(args):
     """Manage and start the Podarcis Slack agent."""
-    from podarcislab.slack.config import SlackConfig
-    from podarcislab.slack.bot import PodarcisSlackBot
-    from podarcislab.slack.agent import PodarcisResearchAgent
-    from podarcislab.slack.knowledge import ScopedKnowledgeBase
+    from podarcisnest.slack.config import SlackConfig
+    from podarcisnest.slack.bot import PodarcisSlackBot
+    from podarcisnest.slack.agent import PodarcisResearchAgent
+    from podarcisnest.slack.knowledge import ScopedKnowledgeBase
 
     action = args.slack_action
     cfg = SlackConfig.load(root_dir)
 
     if action == "status":
-        console.print("[bold cyan]PodarcisLab Slack Agent Status[/bold cyan]\n")
+        console.print("[bold cyan]🦎 PodarcisNest Slack Agent Status[/bold cyan]\n")
         table = Table()
         table.add_column("Setting", style="bold")
         table.add_column("Value")
@@ -232,9 +232,9 @@ def cmd_slack(args):
         console.print(table)
 
         if not cfg.is_configured():
-            console.print("\n[yellow]⚠️ Slack agent is missing configuration. Use 'podarcislab slack config' or set env vars.[/yellow]")
+            console.print("\n[yellow]⚠️ Slack agent is missing configuration. Use 'podarcisnest slack config' or set env vars.[/yellow]")
         else:
-            console.print("\n[green]✓ Ready to connect via 'podarcislab slack start'[/green]")
+            console.print("\n[green]✓ Ready to connect via 'podarcisnest slack start'[/green]")
 
     elif action == "config":
         if args.bot_token:
@@ -272,7 +272,7 @@ def cmd_slack(args):
 
 
 def main():
-    parser = argparse.ArgumentParser(prog="podarcislab", description="PodarcisLab Multi-User Hub CLI")
+    parser = argparse.ArgumentParser(prog="podarcisnest", description="PodarcisNest Multi-User Habitat CLI")
     subparsers = parser.add_subparsers(dest="command")
 
     # status
@@ -326,8 +326,8 @@ def main():
     )
     tmpl_parser.add_argument(
         "--branch",
-        default="main",
-        help="Git branch to sync (default: main)",
+        default="master",
+        help="Git branch to sync (default: master)",
     )
 
     # slack

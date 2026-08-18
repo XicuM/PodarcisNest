@@ -6,13 +6,13 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from podarcislab.slack.config import SlackConfig
-from podarcislab.slack.knowledge import ScopedKnowledgeBase
+from podarcisnest.slack.config import SlackConfig
+from podarcisnest.slack.knowledge import ScopedKnowledgeBase
 
-logger = logging.getLogger("podarcislab.slack.agent")
+logger = logging.getLogger("podarcisnest.slack.agent")
 
-SYSTEM_PROMPT = """You are @podarcis, the AI Research Assistant for the Podarcis research lab.
-Your primary role is to assist researchers and lab members via Slack by:
+SYSTEM_PROMPT = """You are @podarcis, the AI Research Assistant for the PodarcisNest research habitat.
+Your primary role is to assist researchers and team members via Slack by:
 1. Summarizing recent research progress, newly added protocols, and updated wiki notes.
 2. Answering research and scientific questions using the shared Open Knowledge Format (OKF v0.2) wiki.
 3. Staging and tracking literature or source papers in the shared repository.
@@ -197,11 +197,11 @@ class PodarcisResearchAgent:
 
         if not recent_notes and not staged:
             return (
-                f"📊 *Podarcis Shared Research Summary ({timeframe_label})*\n\n"
+                f"📊 *PodarcisNest Shared Research Summary ({timeframe_label})*\n\n"
                 f"No modified notes or staged papers found in `data/shared/` over the last {days} days."
             )
 
-        output = [f"📊 *Podarcis Shared Research Summary ({timeframe_label})*\n"]
+        output = [f"📊 *PodarcisNest Shared Research Summary ({timeframe_label})*\n"]
 
         if recent_notes:
             output.append(f"*📝 Updated OKF Wiki Notes ({len(recent_notes)}):*")

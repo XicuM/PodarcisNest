@@ -1,4 +1,4 @@
-"""PodarcisLab Server - Multi-User Reverse Proxy, Orthogonal Admin Portal, and Container Gateway."""
+"""PodarcisNest Server - Multi-User Reverse Proxy, Orthogonal Admin Portal, and Container Gateway."""
 
 import asyncio
 import os
@@ -17,8 +17,8 @@ from starlette.websockets import WebSocket, WebSocketDisconnect
 import httpx
 import websockets
 
-from podarcislab.server.user_manager import UserManager
-from podarcislab.server.seeder import seed_user_workspace
+from podarcisnest.server.user_manager import UserManager
+from podarcisnest.server.seeder import seed_user_workspace
 
 root_dir = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
@@ -46,7 +46,6 @@ async def route_home(request):
             "port": c_info.get("port", "—"),
         })
 
-    # Render landing page or redirect to admin login if no users
     return templates.TemplateResponse(request=request, name="login.html", context={
         "users": user_list,
         "error": request.query_params.get("error"),
@@ -106,7 +105,6 @@ async def route_admin_get(request):
             "status": c_info.get("status", "Stopped"),
             "port": c_info.get("port", "—"),
             "created_at": udata.get("created_at", "—"),
-            "password": udata.get("password", "—"),
         })
 
     return templates.TemplateResponse(request=request, name="admin.html", context={"users": user_list})
@@ -344,10 +342,9 @@ routes = [
     WebSocketRoute("/user/{username}/{path:path}", route_user_ws_proxy),
 ]
 
-secret_key = os.environ.get("PODARCISLAB_SECRET_KEY", "podarcislab-secret-key-change-in-production")
+secret_key = os.environ.get("PODARCISNEST_SECRET_KEY", "podarcisnest-secret-key-change-in-production")
 middleware = [
-    Middleware(SessionMiddleware, secret_key=secret_key, session_cookie="podarcislab_session"),
+    Middleware(SessionMiddleware, secret_key=secret_key, session_cookie="podarcisnest_session"),
 ]
 
 app = Starlette(debug=True, routes=routes, middleware=middleware)
-

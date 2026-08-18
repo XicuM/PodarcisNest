@@ -4,8 +4,7 @@ __pycache__/
 data/
 *.egg-info/
 .vscode/
-podarcislab.service
-podarcislab-slack.service
+podarcisnest.service
+podarcisnest-slack.service
 *.pid
 *.log
-

@@ -1,4 +1,4 @@
-"""Podarcis workspace seeder and template manager for PodarcisLab."""
+"""Podarcis workspace seeder and template manager for PodarcisNest."""
 
 import json
 import os

@@ -1,4 +1,4 @@
-"""User container management and strict volume isolation for PodarcisLab multi-user server."""
+"""User container management and strict volume isolation for PodarcisNest multi-user server."""
 
 import json
 import os
@@ -12,7 +12,7 @@ import hashlib
 import hmac
 import secrets
 
-from podarcislab.server.seeder import seed_user_workspace
+from podarcisnest.server.seeder import seed_user_workspace
 
 USER_NAME_REGEX = re.compile(r'^[a-zA-Z0-9_-]{3,32}$')
 
@@ -113,7 +113,7 @@ class UserManager:
                     "ps",
                     "-a",
                     "--filter",
-                    "label=podarcislab.user",
+                    "label=podarcisnest.user",
                     "--format",
                     "{{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.Labels}}",
                 ],
@@ -130,9 +130,9 @@ class UserManager:
                         user = None
                         target_port = None
                         for label in labels_str.split(","):
-                            if label.startswith("podarcislab.user="):
+                            if label.startswith("podarcisnest.user="):
                                 user = label.split("=", 1)[1]
-                            elif label.startswith("podarcislab.port="):
+                            elif label.startswith("podarcisnest.port="):
                                 target_port = label.split("=", 1)[1]
                         containers.append({
                             "name": name,
@@ -231,10 +231,10 @@ class UserManager:
             port += 1
 
     def ensure_image_exists(self) -> bool:
-        """Ensure podarcislab-user:latest Docker image exists, auto-building if missing."""
+        """Ensure podarcisnest-user:latest Docker image exists, auto-building if missing."""
         try:
             inspect_res = subprocess.run(
-                ["docker", "image", "inspect", "podarcislab-user:latest"],
+                ["docker", "image", "inspect", "podarcisnest-user:latest"],
                 capture_output=True,
                 check=False,
             )
@@ -243,7 +243,7 @@ class UserManager:
             dockerfile = self.root_dir / "Dockerfile"
             if dockerfile.exists():
                 build_res = subprocess.run(
-                    ["docker", "build", "-t", "podarcislab-user:latest", str(self.root_dir)],
+                    ["docker", "build", "-t", "podarcisnest-user:latest", str(self.root_dir)],
                     capture_output=True,
                     check=False,
                 )
@@ -272,7 +272,7 @@ class UserManager:
 
         self.ensure_image_exists()
 
-        container_name = f"podarcislab-user-{username}"
+        container_name = f"podarcisnest-user-{username}"
         shared_wiki = self.root_dir / "data" / "shared" / "wiki"
         shared_sources = self.root_dir / "data" / "shared" / "sources"
         shared_wiki.mkdir(parents=True, exist_ok=True)
@@ -289,9 +289,9 @@ class UserManager:
             "--name",
             container_name,
             "--label",
-            f"podarcislab.user={username}",
+            f"podarcisnest.user={username}",
             "--label",
-            f"podarcislab.port={port}",
+            f"podarcisnest.port={port}",
             "-v",
             f"{workspace_dir}:/home/coder/workspace",
             "-v",
@@ -304,7 +304,7 @@ class UserManager:
             f"127.0.0.1:{port}:8000",
             "--restart",
             "unless-stopped",
-            "podarcislab-user:latest",
+            "podarcisnest-user:latest",
             "code-server",
             "--bind-addr",
             "0.0.0.0:8000",
@@ -318,7 +318,7 @@ class UserManager:
             return {
                 "name": container_name,
                 "username": username,
-                "status": "Virtual Mode (Build podarcislab-user:latest image for live Docker run)",
+                "status": "Virtual Mode (Build podarcisnest-user:latest image for live Docker run)",
                 "port": str(port),
                 "error": res.stderr.strip(),
             }
@@ -331,7 +331,7 @@ class UserManager:
         }
 
     def stop_user_container(self, username: str) -> bool:
-        container_name = f"podarcislab-user-{username}"
+        container_name = f"podarcisnest-user-{username}"
         res = subprocess.run(["docker", "rm", "-f", container_name], capture_output=True, check=False)
         return res.returncode == 0
 

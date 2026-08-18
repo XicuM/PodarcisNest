@@ -1,5 +1,5 @@
 [Unit]
-Description=PodarcisLab Multi-User Research Hub & Container Orchestrator
+Description=PodarcisNest Multi-User Research Habitat & Container Orchestrator
 After=network.target docker.service
 Requires=docker.service
 
@@ -7,10 +7,10 @@ Requires=docker.service
 Type=simple
 User={{USER}}
 WorkingDirectory={{INSTALL_DIR}}
-ExecStart={{PYTHON_BIN}} -m podarcislab.cli run --host 0.0.0.0 --port {{PORT}}
+ExecStart={{PYTHON_BIN}} -m podarcisnest.cli run --host 0.0.0.0 --port {{PORT}}
 Restart=always
 RestartSec=5s
-Environment=PODARCISLAB_ENV=production
+Environment=PODARCISNEST_ENV=production
 Environment=PYTHONUNBUFFERED=1
 
 [Install]
