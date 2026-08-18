@@ -1,5 +1,6 @@
 import path from 'path';
 import crypto from 'crypto';
+import net from 'net';
 import fs from 'fs-extra';
 import Fastify, { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import formbody from '@fastify/formbody';
@@ -16,6 +17,32 @@ import { seedUserWorkspace } from './seeder.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const defaultRootDir = path.resolve(__dirname, '..', '..');
+
+export function waitForPort(port: number, host = '127.0.0.1', timeoutMs = 8000): Promise<boolean> {
+  const startTime = Date.now();
+  return new Promise((resolve) => {
+    const tryConnect = () => {
+      if (Date.now() - startTime >= timeoutMs) {
+        return resolve(false);
+      }
+      const sock = net.createConnection({ port, host });
+      sock.setTimeout(1000);
+      sock.on('connect', () => {
+        sock.destroy();
+        resolve(true);
+      });
+      sock.on('error', () => {
+        sock.destroy();
+        setTimeout(tryConnect, 200);
+      });
+      sock.on('timeout', () => {
+        sock.destroy();
+        setTimeout(tryConnect, 200);
+      });
+    };
+    tryConnect();
+  });
+}
 
 export function findTemplatesDir(rootDir: string): string {
   const candidates = [
@@ -307,17 +334,33 @@ export function createServer(rootDir: string = defaultRootDir): FastifyInstance 
       return reply.redirect(`/login?error=Please+log+in+to+access+workspace+'${targetUser}'`);
     }
 
+    // Ensure trailing slash for root user path to avoid relative redirect loops
+    const rawUrl = req.raw.url || '/';
+    if (!rawUrl.endsWith('/') && (rawUrl === `/user/${targetUser}` || rawUrl.startsWith(`/user/${targetUser}?`))) {
+      const query = rawUrl.includes('?') ? rawUrl.slice(rawUrl.indexOf('?')) : '';
+      return reply.status(302).redirect(`/user/${targetUser}/${query}`);
+    }
+
     let container = userManager.getContainerForUser(targetUser);
     if (!container || !container.port) {
       container = await userManager.startUserContainer(targetUser);
     }
 
-    const targetPort = container.port;
-    if (!targetPort) {
+    const portNum = container.port ? parseInt(container.port, 10) : null;
+    if (!portNum) {
       return reply
         .code(503)
         .type('text/html')
         .send(`<h3>VS Code container starting up for '${targetUser}'. Please refresh in a few seconds...</h3>`);
+    }
+
+    // Wait for the container's code-server process to accept TCP connections (up to 8s)
+    const isReady = await waitForPort(portNum, '127.0.0.1', 8000);
+    if (!isReady) {
+      return reply
+        .code(503)
+        .type('text/html')
+        .send(`<h3>VS Code container for '${targetUser}' is initializing...</h3><p>Please wait a moment while the server starts.</p><script>setTimeout(()=>location.reload(), 2000)</script>`);
     }
 
     // Rewrite path to remove /user/:username prefix before proxying to code-server root
@@ -335,7 +378,9 @@ export function createServer(rootDir: string = defaultRootDir): FastifyInstance 
 
     reply.hijack();
     proxy.web(req.raw, reply.raw, {
-      target: `http://127.0.0.1:${targetPort}`,
+      target: `http://127.0.0.1:${portNum}`,
+      changeOrigin: true,
+      autoRewrite: true,
       prependPath: false,
     });
   };
@@ -344,7 +389,7 @@ export function createServer(rootDir: string = defaultRootDir): FastifyInstance 
   app.all('/user/:username/*', handleProxy);
 
   // WebSocket proxy on upgrade
-  app.server.on('upgrade', (req, socket, head) => {
+  app.server.on('upgrade', async (req, socket, head) => {
     const url = req.url || '';
     const match = url.match(/^\/user\/([^/?#]+)/);
     if (!match) {
@@ -364,7 +409,18 @@ export function createServer(rootDir: string = defaultRootDir): FastifyInstance 
       return;
     }
 
-    const targetPort = container.port;
+    const portNum = parseInt(container.port, 10);
+    if (isNaN(portNum)) {
+      socket.destroy();
+      return;
+    }
+
+    const isReady = await waitForPort(portNum, '127.0.0.1', 3000);
+    if (!isReady) {
+      socket.destroy();
+      return;
+    }
+
     const prefix = `/user/${targetUser}`;
     let newUrl = url;
     if (newUrl.startsWith(prefix)) {
@@ -376,7 +432,8 @@ export function createServer(rootDir: string = defaultRootDir): FastifyInstance 
     req.headers['x-forwarded-prefix'] = `/user/${targetUser}`;
 
     proxy.ws(req, socket, head, {
-      target: `ws://127.0.0.1:${targetPort}`,
+      target: `ws://127.0.0.1:${portNum}`,
+      changeOrigin: true,
       prependPath: false,
     });
   });
