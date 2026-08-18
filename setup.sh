@@ -5,6 +5,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PORT=8080
 INSTALL_SYSTEMD=true
 USER_SERVICE=false
+BUILD_DOCKER=true
+INSTALL_SLACK=false
 
 # Parse arguments
 while [[ "$#" -gt 0 ]]; do
@@ -12,12 +14,16 @@ while [[ "$#" -gt 0 ]]; do
         --port) PORT="$2"; shift ;;
         --no-systemd) INSTALL_SYSTEMD=false ;;
         --user-service) USER_SERVICE=true ;;
+        --no-docker) BUILD_DOCKER=false ;;
+        --with-slack|--slack) INSTALL_SLACK=true ;;
         -h|--help)
             echo "Usage: ./setup.sh [OPTIONS]"
             echo "Options:"
             echo "  --port <port>         Set web listening port (default: 8080)"
             echo "  --no-systemd          Skip systemd service installation"
             echo "  --user-service        Install as systemd user service instead of system service"
+            echo "  --no-docker           Skip Docker user image build"
+            echo "  --with-slack          Install Slack bot dependencies (slack-bolt)"
             exit 0
             ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
@@ -41,14 +47,44 @@ if [ ! -d "$SCRIPT_DIR/.venv" ]; then
     python3 -m venv "$SCRIPT_DIR/.venv"
 fi
 
-echo "Installing dependencies..."
+echo "Installing core dependencies..."
 "$SCRIPT_DIR/.venv/bin/pip" install --upgrade pip
-"$SCRIPT_DIR/.venv/bin/pip" install -e "$SCRIPT_DIR"
+
+if [ "$INSTALL_SLACK" = true ]; then
+    echo "Installing PodarcisLab with Slack integration..."
+    "$SCRIPT_DIR/.venv/bin/pip" install -e "$SCRIPT_DIR[slack]"
+else
+    "$SCRIPT_DIR/.venv/bin/pip" install -e "$SCRIPT_DIR"
+fi
 
 # Create data directories
 mkdir -p "$SCRIPT_DIR/data/users"
 mkdir -p "$SCRIPT_DIR/data/shared/wiki"
 mkdir -p "$SCRIPT_DIR/data/shared/sources"
+
+# Build Docker user image
+if [ "$BUILD_DOCKER" = true ]; then
+    if command -v docker &> /dev/null; then
+        echo "Building / verifying Docker user image (podarcislab-user:latest)..."
+        docker build -t podarcislab-user:latest "$SCRIPT_DIR"
+    else
+        echo "Warning: Docker is not installed or not in PATH. Skipping image build."
+    fi
+fi
+
+# Detect Operating System & Init system
+OS="$(uname -s)"
+HAS_SYSTEMCTL=false
+if command -v systemctl &> /dev/null; then
+    HAS_SYSTEMCTL=true
+fi
+
+if [ "$INSTALL_SYSTEMD" = true ]; then
+    if [ "$OS" != "Linux" ] || [ "$HAS_SYSTEMCTL" = false ]; then
+        echo "Note: systemd is only available on Linux with systemctl. Skipping systemd service installation on $OS."
+        INSTALL_SYSTEMD=false
+    fi
+fi
 
 if [ "$INSTALL_SYSTEMD" = true ]; then
     echo "Configuring systemd service..."
@@ -97,4 +133,5 @@ echo ""
 echo "Debug CLI commands:"
 echo "  $SCRIPT_DIR/.venv/bin/podarcislab status"
 echo "  $SCRIPT_DIR/.venv/bin/podarcislab user list"
+echo "  $SCRIPT_DIR/.venv/bin/podarcislab slack status"
 echo "========================================="

@@ -12,6 +12,8 @@ import hashlib
 import hmac
 import secrets
 
+from podarcislab.server.seeder import seed_user_workspace
+
 USER_NAME_REGEX = re.compile(r'^[a-zA-Z0-9_-]{3,32}$')
 
 
@@ -22,7 +24,9 @@ class UserManager:
         self.root_dir = root_dir.resolve()
         self.data_dir = self.root_dir / "data" / "users"
         self.data_dir.mkdir(parents=True, exist_ok=True)
+        self.admin_file = self.root_dir / "data" / "admin.json"
         self.registry_file = self.data_dir / "users.json"
+        self._init_admin()
         self._init_registry()
 
     @staticmethod
@@ -44,19 +48,47 @@ class UserManager:
         expected_hash, _ = UserManager.hash_password(password, salt)
         return hmac.compare_digest(password_hash, expected_hash)
 
+    def _init_admin(self) -> None:
+        if not self.admin_file.exists():
+            admin_hash, admin_salt = self.hash_password("admin")
+            admin_data = {
+                "role": "admin",
+                "password_hash": admin_hash,
+                "password_salt": admin_salt,
+                "created_at": "2026-08-01T00:00:00Z",
+            }
+            self.admin_file.write_text(json.dumps(admin_data, indent=2), encoding="utf-8")
+
+    def authenticate_admin(self, password: str) -> bool:
+        try:
+            admin_data = json.loads(self.admin_file.read_text(encoding="utf-8"))
+            stored_hash = admin_data.get("password_hash")
+            stored_salt = admin_data.get("password_salt")
+            if stored_hash and stored_salt:
+                return self.verify_password(password, stored_hash, stored_salt)
+        except Exception:
+            pass
+        return False
+
+    def set_admin_password(self, password: str) -> None:
+        pwd_hash, salt = self.hash_password(password)
+        admin_data = {
+            "role": "admin",
+            "password_hash": pwd_hash,
+            "password_salt": salt,
+            "updated_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
+        }
+        self.admin_file.write_text(json.dumps(admin_data, indent=2), encoding="utf-8")
+
     def _init_registry(self) -> None:
         if not self.registry_file.exists():
-            admin_hash, admin_salt = self.hash_password("admin")
-            default_data = {
-                "admin": {
-                    "username": "admin",
-                    "role": "admin",
-                    "created_at": "2026-08-01T00:00:00Z",
-                    "password_hash": admin_hash,
-                    "password_salt": admin_salt,
-                }
-            }
-            self.registry_file.write_text(json.dumps(default_data, indent=2), encoding="utf-8")
+            self.registry_file.write_text(json.dumps({}, indent=2), encoding="utf-8")
+        else:
+            # Clean out admin if stored in users.json
+            reg = self.get_users_registry()
+            if "admin" in reg:
+                del reg["admin"]
+                self.save_users_registry(reg)
 
     def get_users_registry(self) -> Dict[str, Any]:
         try:
@@ -120,7 +152,7 @@ class UserManager:
         return None
 
     def set_user_password(self, username: str, password: str) -> None:
-        """Set or update a user's password with a fresh hash and salt."""
+        """Set or update a user's password."""
         registry = self.get_users_registry()
         if username not in registry:
             raise ValueError(f"User '{username}' does not exist.")
@@ -130,7 +162,7 @@ class UserManager:
         self.save_users_registry(registry)
 
     def authenticate_user(self, username: str, password: str) -> Optional[Dict[str, Any]]:
-        """Validate user credentials against stored hash or initialize password on first use."""
+        """Validate user credentials."""
         registry = self.get_users_registry()
         user_info = registry.get(username)
         if not user_info:
@@ -148,6 +180,8 @@ class UserManager:
         return None
 
     def create_user(self, username: str, role: str = "user", password: Optional[str] = None) -> Dict[str, Any]:
+        if username == "admin":
+            raise ValueError("Cannot create a user named 'admin'. Admin is a dedicated management role.")
         if not USER_NAME_REGEX.match(username):
             raise ValueError("Invalid username. Must be 3-32 alphanumeric characters, hyphens, or underscores.")
 
@@ -156,19 +190,19 @@ class UserManager:
             raise ValueError(f"User '{username}' already exists.")
 
         workspace_dir = self.get_user_workspace(username)
-        (workspace_dir / "wiki").mkdir(exist_ok=True)
-        (workspace_dir / "workspace").mkdir(exist_ok=True)
+        seed_user_workspace(workspace_dir, username, self.root_dir)
+
+        user_pwd = password or f"{username}123"
+        pwd_hash, salt = self.hash_password(user_pwd)
 
         user_info = {
             "username": username,
             "role": role,
             "created_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
             "workspace_path": str(workspace_dir),
+            "password_hash": pwd_hash,
+            "password_salt": salt,
         }
-        if password:
-            pwd_hash, salt = self.hash_password(password)
-            user_info["password_hash"] = pwd_hash
-            user_info["password_salt"] = salt
 
         registry[username] = user_info
         self.save_users_registry(registry)
@@ -176,6 +210,7 @@ class UserManager:
 
     def _allocate_free_port(self) -> int:
         """Find next available port starting from 9001."""
+        import socket
         used_ports = set()
         for c in self.list_containers():
             if c.get("port"):
@@ -184,21 +219,65 @@ class UserManager:
                 except ValueError:
                     pass
         port = 9001
-        while port in used_ports:
+        while True:
+            if port not in used_ports:
+                try:
+                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                        s.bind(("127.0.0.1", port))
+                        return port
+                except OSError:
+                    pass
             port += 1
-        return port
+
+    def ensure_image_exists(self) -> bool:
+        """Ensure podarcislab-user:latest Docker image exists, auto-building if missing."""
+        try:
+            inspect_res = subprocess.run(
+                ["docker", "image", "inspect", "podarcislab-user:latest"],
+                capture_output=True,
+                check=False,
+            )
+            if inspect_res.returncode == 0:
+                return True
+            dockerfile = self.root_dir / "Dockerfile"
+            if dockerfile.exists():
+                build_res = subprocess.run(
+                    ["docker", "build", "-t", "podarcislab-user:latest", str(self.root_dir)],
+                    capture_output=True,
+                    check=False,
+                )
+                return build_res.returncode == 0
+        except Exception:
+            pass
+        return False
 
     def start_user_container(self, username: str) -> Dict[str, Any]:
+        if username == "admin":
+            raise ValueError("Cannot start a container for 'admin'. Admin is a management role.")
+
         registry = self.get_users_registry()
         if username not in registry:
             self.create_user(username)
+            registry = self.get_users_registry()
+
+        workspace_dir = self.get_user_workspace(username)
+        # Ensure workspace is seeded with Podarcis .agents and OKF layout
+        if not (workspace_dir / "AGENTS.md").exists() or not (workspace_dir / ".agents").exists():
+            seed_user_workspace(workspace_dir, username, self.root_dir)
 
         existing = self.get_container_for_user(username)
         if existing and "Up" in existing.get("status", ""):
             return existing
 
+        self.ensure_image_exists()
+
         container_name = f"podarcislab-user-{username}"
-        workspace_dir = self.get_user_workspace(username)
+        shared_wiki = self.root_dir / "data" / "shared" / "wiki"
+        shared_sources = self.root_dir / "data" / "shared" / "sources"
+        shared_wiki.mkdir(parents=True, exist_ok=True)
+        shared_sources.mkdir(parents=True, exist_ok=True)
+
         port = self._allocate_free_port()
 
         subprocess.run(["docker", "rm", "-f", container_name], capture_output=True, check=False)
@@ -214,7 +293,11 @@ class UserManager:
             "--label",
             f"podarcislab.port={port}",
             "-v",
-            f"{workspace_dir}:/workspace",
+            f"{workspace_dir}:/home/coder/workspace",
+            "-v",
+            f"{shared_wiki}:/home/coder/workspace/shared/wiki",
+            "-v",
+            f"{shared_sources}:/home/coder/workspace/shared/sources",
             "-e",
             f"PODARCIS_USER={username}",
             "-p",
@@ -222,6 +305,12 @@ class UserManager:
             "--restart",
             "unless-stopped",
             "podarcislab-user:latest",
+            "code-server",
+            "--bind-addr",
+            "0.0.0.0:8000",
+            "--auth",
+            "none",
+            "/home/coder/workspace",
         ]
 
         res = subprocess.run(cmd, capture_output=True, text=True, check=False)

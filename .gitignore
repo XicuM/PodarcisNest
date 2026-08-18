@@ -1,8 +1,11 @@
 __pycache__/
 *.pyc
 .venv/
-data/users/
-data/shared/
+data/
+*.egg-info/
+.vscode/
 podarcislab.service
+podarcislab-slack.service
 *.pid
 *.log
+

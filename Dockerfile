@@ -17,6 +17,28 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install uv package manager
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
+# Install Podarcis & MCP dependencies into system Python
+RUN uv pip install --system --no-cache \
+    "mcp[cli]>=1.0.0,<2.0.0" \
+    "rich>=13.7.0" \
+    "questionary" \
+    "python-dotenv>=1.0.0" \
+    "pytest" \
+    "pyyaml>=6.0" \
+    "yfinance" \
+    "markitdown>=0.1.7" \
+    "scipy>=1.15.3" \
+    "httpx>=0.27.0" \
+    "websockets>=12.0" \
+    "starlette>=0.37.0"
+
+ARG PODARCIS_REF=master
+
+# Install podarcis CLI package from authoritative repository
+RUN uv pip install --system --no-cache \
+    "git+https://github.com/XicuM/Podarcis.git@${PODARCIS_REF}" || \
+    pip3 install --no-cache-dir "git+https://github.com/XicuM/Podarcis.git@${PODARCIS_REF}" || true
+
 # Ensure workspace and code-server directories exist
 RUN mkdir -p /home/coder/workspace && \
     chown -R coder:coder /home/coder
@@ -26,6 +48,7 @@ WORKDIR /home/coder/workspace
 
 # Install popular extensions for VS Code Web (Python, Markdown, etc.)
 RUN code-server --install-extension ms-python.python || true
+RUN code-server --install-extension yzhang.markdown-all-in-one || true
 
 EXPOSE 8000
 
