@@ -1,4 +1,8 @@
-# PodarcisNest 🦎
+# 🦎 PodarcisNest — Team Research Habitat & Server
+
+| | |
+| --- | --- |
+| <br>⠀⠀⠀⠀⠀⠀⠀⠀⠠⣽⣆⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀<br>⠀⠀⠀⣤⣤⣤⣤⣄⡚⠻⣿⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀<br>⠀⠀⠀⣿⣿⣿⣿⣿⣿ ⣸⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀<br>⠀⢀⡀⠸⢿⣿⣿⣿⣿⣶⣿⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀<br>⠐⠲⣿⣼⠂ ⣿⣿⣿⣿⣿⣆⠀⢀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀<br> ⠈⠙⠻⣶⣼⣿⢿⣿⣿⣿⣿⡆⠙⢿⣦⣄⣀⠀⠀⠀⠀⠀⠀⠀⠀<br>⠀⠀⠀⠀⠀⠉⠁⢸⣿⣿⣿⣿⣿⠀⣀⣄⠉⠙⠛⠿⢷⣦⣀⠀⠀⠀<br>⠀⠀⠀⠀⢀⠰⣶⣶⣿⣿⣿⣿⣿⣿⣿⣿⡀⣠⠄⠀⠀⠈⠻⣿⡆⠀<br>⠀⠀⠠⠶⢮⣷⣿⡋⠋⠉⢹⣿⣿⠉⠀⠻⣷⣿⣿⡉⠓⠀⠀⢹⣿⠀<br>⠀⠀⠀⠋⠹⠉⠙⠁⠀⠀⠈⣿⣿⡇⠀⠀⠈⠉⠆⠁⠀⠀⠀⢸⣿⠇<br>⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⢿⣿⣄⠀⠀⠀⠀⠀⠀⠀⢀⣾⣿⠁<br>⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠻⣿⣦⣄⡀⡀⢀⣠⣴⣿⣿⠃⠀<br>⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠛⠿⠿⣿⣿⠿⠿⠋⠁⠀⠀<br> | **PodarcisNest** 🦎<br> *Multi-User Research Habitat & Server Infrastructure* <br><br>Installation:<br>```git clone https://github.com/XicuM/PodarcisLab.git```<br>```cd PodarcisNest```<br>```./setup.sh```<br> |
 
 **PodarcisNest** is the multi-user research habitat, dynamic reverse proxy, and container orchestrator for the **Podarcis** research ecosystem.
 
@@ -192,3 +196,16 @@ Container: `podarcisnest-user-alice` (:9003)                                    
 - Shared Knowledge Mount: `data/shared/` ──> `/home/coder/workspace/shared/`    - Shared Knowledge Mount: `data/shared/` ──> `/home/coder/workspace/shared/`
 - Runtime: VS Code Web + Python + Podarcis CLI + MCP Servers                    - Runtime: VS Code Web + Python + Podarcis CLI + MCP Servers
 ```
+
+---
+
+## 🦎 Salvem ses Sargantanes! (*Podarcis pityusensis*)
+
+> ### 🌿 Salvem ses Sargantanes!
+> 
+> *PodarcisNest* is named after *Podarcis*, the genus of Mediterranean wall lizards. In particular, the **Ibiza wall lizard** (*Podarcis pityusensis*), endemic to Ibiza and Formentera (*ses sargantanes*), is facing critical threats of extinction due to invasive alien snake species.
+> 
+> Support active conservation, educational, and habitat protection initiatives:
+> 
+> 👉 **[Protegim ses Sargantanes — Learn & Support Conservation Efforts](https://protegimsessargantanes.org/en/home-english/)**
+
