@@ -53,6 +53,8 @@ WORKDIR /home/coder/workspace
 # Install popular extensions for VS Code Web (Python, Markdown, etc.)
 RUN code-server --install-extension ms-python.python || true
 RUN code-server --install-extension yzhang.markdown-all-in-one || true
+RUN code-server --install-extension bierner.markdown-preview-github-styles || true
+RUN code-server --install-extension houkanshan.vscode-markdown-footnote || true
 
 EXPOSE 8000
 

@@ -39,6 +39,86 @@ engines:
   qmd: true
 `;
 
+export const DEFAULT_VSCODE_SETTINGS_JSON = {
+  'window.title': '🦎 Podarcis | Knowledge Base',
+  'files.exclude': {
+    '**/*.css': true,
+    '**/*.js': true,
+    '**/*.json': true,
+    '**/*.py': true,
+    '**/*.scss': true,
+    '**/*.ts': true,
+    '**/*.yaml': true,
+    '**/*.yml': true,
+    '**/Dockerfile': true,
+    '**/node_modules': true,
+    '**/podarcis': true,
+    '**/public': true,
+    '**/pyproject.toml': true,
+    '**/uv.lock': true,
+    'CODE_OF_CONDUCT.md': true,
+    'config': true,
+    'docs': true,
+    'open-code-data': true,
+    'podarcis.egg-info': true,
+  },
+  'workbench.startupEditor': 'readme',
+  'workbench.statusBar.visible': false,
+  'editor.minimap.enabled': false,
+  'editor.wordWrap': 'on',
+  'editor.lineNumbers': 'off',
+  'editor.fontSize': 15,
+  'editor.fontFamily': "'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Source Code Pro', 'Roboto Mono', 'Consolas', monospace",
+  'editor.fontLigatures': true,
+  'markdown.preview.typographer': true,
+  'markdown.preview.breaks': true,
+  'markdown.preview.fontSize': 15,
+  'markdown.preview.openMarkdownLinks': 'inPreview',
+  'markdown.preview.frontMatter': 'hide',
+  'workbench.editorAssociations': {
+    '*.md': 'vscode.markdown.preview.editor',
+  },
+  'explorer.openEditors.visible': 0,
+  'workbench.activityBar.location': 'top',
+  'task.autoDetect': 'off',
+  'task.allowAutomaticTasks': 'off',
+  'workbench.colorCustomizations': {
+    'titleBar.activeBackground': '#1f3970',
+    'titleBar.activeForeground': '#ffffff',
+    'titleBar.inactiveBackground': '#1f397099',
+    'activityBar.background': '#1f3970',
+    'activityBar.foreground': '#ffffff',
+    'activityBar.inactiveForeground': '#7ba5e0',
+  },
+  'continue.telemetryEnabled': false,
+  'continue.enableTabAutocomplete': true,
+  'continue.pauseTabAutocompleteOnBattery': false,
+  'continue.remoteConfigServerUrl': null,
+  'cline.telemetryEnabled': false,
+  'cline.enableNativeToolCalls': true,
+  'cline.preferredLanguage': 'Markdown',
+};
+
+export const DEFAULT_VSCODE_EXTENSIONS_JSON = {
+  recommendations: [
+    'saoudrizwan.claude-dev',
+    'houkanshan.vscode-markdown-footnote',
+    'bierner.markdown-preview-github-styles',
+    'constellationgraph.constellationgraph',
+  ],
+};
+
+export const DEFAULT_VSCODE_KEYBINDINGS_JSON = [
+  {
+    key: 'ctrl+alt+f',
+    command: 'editor.fold',
+  },
+  {
+    key: 'ctrl+alt+u',
+    command: 'editor.unfold',
+  },
+];
+
 export const DEFAULT_AGENTS_MD = `# Podarcis — The Research Agent with Memory
 
 You are Podarcis, a research agent designed around a **filesystem-driven, evidence-based agent architecture** conforming to the **Open Knowledge Format (OKF v0.2)** specification, **Markdown multi-agent standards**, and a **multi-user containerized server architecture**.
@@ -438,6 +518,56 @@ export function seedUserWorkspace(workspaceDir: string, username: string, rootDi
       `## Active Protocols\n`,
       'utf-8'
     );
+  }
+
+  // Scaffold .podarcis/templates/vscode
+  const templateVscodeDir = path.join(workspaceDir, '.podarcis', 'templates', 'vscode');
+  fs.ensureDirSync(templateVscodeDir);
+
+  const tplSettings = path.join(templateVscodeDir, 'settings.json');
+  if (!fs.existsSync(tplSettings)) {
+    fs.writeFileSync(tplSettings, JSON.stringify(DEFAULT_VSCODE_SETTINGS_JSON, null, 2), 'utf-8');
+  }
+
+  const tplExtensions = path.join(templateVscodeDir, 'extensions.json');
+  if (!fs.existsSync(tplExtensions)) {
+    fs.writeFileSync(tplExtensions, JSON.stringify(DEFAULT_VSCODE_EXTENSIONS_JSON, null, 2), 'utf-8');
+  }
+
+  const tplKeybindings = path.join(templateVscodeDir, 'keybindings.json');
+  if (!fs.existsSync(tplKeybindings)) {
+    fs.writeFileSync(tplKeybindings, JSON.stringify(DEFAULT_VSCODE_KEYBINDINGS_JSON, null, 2), 'utf-8');
+  }
+
+  // Scaffold active .vscode workspace configuration from templates/defaults
+  const vscodeDir = path.join(workspaceDir, '.vscode');
+  fs.ensureDirSync(vscodeDir);
+
+  const wsSettings = path.join(vscodeDir, 'settings.json');
+  if (!fs.existsSync(wsSettings)) {
+    if (fs.existsSync(tplSettings)) {
+      fs.copyFileSync(tplSettings, wsSettings);
+    } else {
+      fs.writeFileSync(wsSettings, JSON.stringify(DEFAULT_VSCODE_SETTINGS_JSON, null, 2), 'utf-8');
+    }
+  }
+
+  const wsExtensions = path.join(vscodeDir, 'extensions.json');
+  if (!fs.existsSync(wsExtensions)) {
+    if (fs.existsSync(tplExtensions)) {
+      fs.copyFileSync(tplExtensions, wsExtensions);
+    } else {
+      fs.writeFileSync(wsExtensions, JSON.stringify(DEFAULT_VSCODE_EXTENSIONS_JSON, null, 2), 'utf-8');
+    }
+  }
+
+  const wsKeybindings = path.join(vscodeDir, 'keybindings.json');
+  if (!fs.existsSync(wsKeybindings)) {
+    if (fs.existsSync(tplKeybindings)) {
+      fs.copyFileSync(tplKeybindings, wsKeybindings);
+    } else {
+      fs.writeFileSync(wsKeybindings, JSON.stringify(DEFAULT_VSCODE_KEYBINDINGS_JSON, null, 2), 'utf-8');
+    }
   }
 
   // Symlink .opencode/agents -> ../.agents/agents
