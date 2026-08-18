@@ -17,6 +17,25 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const defaultRootDir = path.resolve(__dirname, '..', '..');
 
+export function findTemplatesDir(rootDir: string): string {
+  const candidates = [
+    path.join(rootDir, 'src', 'server', 'templates'),
+    path.join(rootDir, 'dist', 'server', 'templates'),
+    path.join(rootDir, 'dist', 'cli', 'templates'),
+    path.join(rootDir, 'dist', 'templates'),
+    path.join(rootDir, 'templates'),
+    path.join(__dirname, 'templates'),
+    path.join(__dirname, '..', 'src', 'server', 'templates'),
+    path.join(__dirname, '..', 'server', 'templates'),
+  ];
+  for (const cand of candidates) {
+    if (fs.existsSync(cand) && (fs.existsSync(path.join(cand, 'login.eta')) || fs.existsSync(path.join(cand, 'login.html')))) {
+      return cand;
+    }
+  }
+  return path.join(rootDir, 'src', 'server', 'templates');
+}
+
 export function getSecretKey(rootDir: string): Buffer {
   const secretFile = path.join(rootDir, 'data', '.session_secret');
   if (fs.existsSync(secretFile)) {
@@ -41,6 +60,7 @@ export function createServer(rootDir: string = defaultRootDir): FastifyInstance 
 
   const userManager = new UserManager(rootDir);
   const secretKey = getSecretKey(rootDir);
+  const templatesDir = findTemplatesDir(rootDir);
   const proxy = httpProxy.createProxyServer({
     ws: true,
     xfwd: true,
@@ -67,7 +87,7 @@ export function createServer(rootDir: string = defaultRootDir): FastifyInstance 
   });
 
   const eta = new Eta({
-    views: path.join(__dirname, 'templates'),
+    views: templatesDir,
     cache: process.env.NODE_ENV === 'production',
   });
 
@@ -75,7 +95,7 @@ export function createServer(rootDir: string = defaultRootDir): FastifyInstance 
     engine: {
       eta,
     },
-    root: path.join(__dirname, 'templates'),
+    root: templatesDir,
   });
 
   app.register(websocket);
