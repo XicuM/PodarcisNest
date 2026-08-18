@@ -7,7 +7,6 @@ import formbody from '@fastify/formbody';
 import cookie from '@fastify/cookie';
 import secureSession from '@fastify/secure-session';
 import pointOfView from '@fastify/view';
-import websocket from '@fastify/websocket';
 import { Eta } from 'eta';
 import httpProxy from 'http-proxy';
 import { fileURLToPath } from 'url';
@@ -124,8 +123,6 @@ export function createServer(rootDir: string = defaultRootDir): FastifyInstance 
     },
     root: templatesDir,
   });
-
-  app.register(websocket);
 
   // Helper: check auth
   function isAuthenticatedForUser(req: FastifyRequest, targetUser: string): boolean {
@@ -391,7 +388,7 @@ export function createServer(rootDir: string = defaultRootDir): FastifyInstance 
   // WebSocket proxy on upgrade
   app.server.on('upgrade', async (req, socket, head) => {
     const url = req.url || '';
-    const match = url.match(/^\/user\/([^/?#]+)/);
+    const match = url.match(/^\/user\/([^/?#]+)(.*)/);
     if (!match) {
       socket.destroy();
       return;
@@ -403,37 +400,33 @@ export function createServer(rootDir: string = defaultRootDir): FastifyInstance 
       return;
     }
 
-    const container = userManager.getContainerForUser(targetUser);
+    let container = userManager.getContainerForUser(targetUser);
     if (!container || !container.port) {
+      container = await userManager.startUserContainer(targetUser);
+    }
+
+    const portNum = container.port ? parseInt(container.port, 10) : null;
+    if (!portNum || isNaN(portNum)) {
       socket.destroy();
       return;
     }
 
-    const portNum = parseInt(container.port, 10);
-    if (isNaN(portNum)) {
-      socket.destroy();
-      return;
-    }
-
-    const isReady = await waitForPort(portNum, '127.0.0.1', 3000);
+    const isReady = await waitForPort(portNum, '127.0.0.1', 4000);
     if (!isReady) {
       socket.destroy();
       return;
     }
 
-    const prefix = `/user/${targetUser}`;
-    let newUrl = url;
-    if (newUrl.startsWith(prefix)) {
-      newUrl = newUrl.slice(prefix.length) || '/';
-    }
-    req.url = newUrl;
+    const subpath = match[2] || '/';
+    req.url = subpath;
 
     req.headers['x-forwarded-host'] = (req.headers.host as string) || 'localhost:8080';
     req.headers['x-forwarded-prefix'] = `/user/${targetUser}`;
+    req.headers['x-forwarded-proto'] = 'http';
 
     proxy.ws(req, socket, head, {
       target: `ws://127.0.0.1:${portNum}`,
-      changeOrigin: true,
+      changeOrigin: false,
       prependPath: false,
     });
   });
