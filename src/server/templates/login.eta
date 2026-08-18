@@ -175,14 +175,6 @@
     <form id="form-user" action="/login/user" method="POST">
       <div class="form-group">
         <label class="form-label" for="username">Username</label>
-        <% if (it.users && it.users.length > 0) { %>
-        <select id="username-select" class="form-input" style="margin-bottom: 10px;" onchange="if(this.value) document.getElementById('username').value=this.value;">
-          <option value="">-- Select Registered Researcher --</option>
-          <% it.users.forEach(function(u) { %>
-          <option value="<%= u.username %>"><%= u.username %> (<%= u.status || 'Registered' %>)</option>
-          <% }) %>
-        </select>
-        <% } %>
         <input type="text" id="username" name="username" class="form-input" placeholder="e.g. alice" required>
       </div>
 
