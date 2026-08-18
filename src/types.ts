@@ -29,6 +29,13 @@ export interface SessionData {
   is_admin?: boolean;
 }
 
+declare module '@fastify/secure-session' {
+  interface SessionData {
+    authenticated_user?: string;
+    is_admin?: boolean;
+  }
+}
+
 export interface SlackConfigData {
   slack_bot_token?: string;
   slack_app_token?: string;
