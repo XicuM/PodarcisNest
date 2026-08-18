@@ -107,15 +107,15 @@ The coordination is asynchronous, mediated by the file structure:
 
 def find_template_source(root_dir: Path) -> Optional[Path]:
     """Find source directory to copy Podarcis assets from."""
+    # 1. Explicit environment variable
     env_template = os.environ.get("PODARCIS_TEMPLATE_DIR")
     if env_template and Path(env_template).exists():
         return Path(env_template)
 
-    # Check dedicated template location, sibling repo, or fallback location
+    # 2. Check dedicated server template cache, sibling repo, or workspace fallback
     candidates = [
         root_dir / "data" / "templates" / "podarcis",
         root_dir.parent / "Podarcis",
-        Path("/home/xicu/Projects/Podarcis"),
         root_dir / "templates" / "workspace_template",
         Path(__file__).parent / "templates" / "workspace_template",
     ]

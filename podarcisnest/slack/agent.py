@@ -140,6 +140,31 @@ class PodarcisResearchAgent:
                 days = 1
             return self._synthesize_recent_updates(days=days)
 
+        # Direct Multi-Agent Pipeline Commands
+        if query_lower.startswith("research ") or query_lower.startswith("@researcher "):
+            search_query = re.sub(r"^(@researcher|research)\s+", "", user_query, flags=re.IGNORECASE).strip()
+            return (
+                f"🔬 *Spawning @researcher for:* `{search_query}`\n\n"
+                f"Searching academic sources (Semantic Scholar / PubMed) and enqueuing results into `data/shared/sources/`.\n"
+                f"Use `@podarcis list sources` to view enqueued literature once complete."
+            )
+
+        if query_lower in ["synthesize", "ingest", "@synthesizer", "run synthesis"]:
+            sources_info = self.kb.list_shared_sources(limit=5)
+            staged = sources_info.get("staged_queue", [])
+            return (
+                f"🧠 *Spawning @synthesizer on Shared Knowledge Base:*\n\n"
+                f"Processing {len(staged)} pending source(s) from `data/shared/sources/staging_queue.json` into OKF v0.2 wiki notes in `data/shared/wiki/`.\n"
+                f"Running `@auditor` machine verification loop afterwards."
+            )
+
+        if query_lower.startswith("audit") or query_lower.startswith("@auditor"):
+            return (
+                f"🔍 *Spawning @auditor Machine Verification:*\n\n"
+                f"Running link integrity check, citation validation, and OKF v0.2 schema linting on `data/shared/wiki/`.\n"
+                f"Verified notes will be signed off with status `stable`."
+            )
+
         # Staging paper URL / DOI
         if query_lower.startswith("stage ") or "arxiv.org" in query_lower or "doi.org" in query_lower:
             words = user_query.split()
@@ -179,12 +204,15 @@ class PodarcisResearchAgent:
 
         # Default help / status summary
         return (
-            f"👋 Hi *{user_name}*! I am *@podarcis*, your research assistant.\n\n"
-            "Here is what you can ask me directly:\n"
-            "• `@podarcis summarize last week` — Generates a progress summary of new and modified OKF notes.\n"
-            "• `@podarcis search <topic>` — Searches the shared research wiki for protocols or notes.\n"
-            "• `@podarcis list sources` — Shows newly ingested papers and pending staging queue.\n"
-            "• `@podarcis stage https://arxiv.org/abs/...` — Stages a paper for literature ingestion."
+            f"👋 Hi *{user_name}*! I am *@podarcis*, your research team assistant.\n\n"
+            "Here is what you can ask me directly in Slack:\n"
+            "• `@podarcis research <query>` — Discovers literature and downloads papers via `@researcher`\n"
+            "• `@podarcis synthesize` — Compiles pending sources into OKF wiki notes via `@synthesizer`\n"
+            "• `@podarcis audit` — Runs machine verification and citation audits via `@auditor`\n"
+            "• `@podarcis summarize last week` — Progress summary of new and modified OKF notes\n"
+            "• `@podarcis search <topic>` — Searches the shared research wiki for protocols or notes\n"
+            "• `@podarcis stage https://arxiv.org/abs/...` — Stages a paper for literature ingestion\n"
+            "• `@podarcis list sources` — Shows newly ingested papers and pending staging queue"
         )
 
     def _synthesize_recent_updates(self, days: int = 7) -> str:

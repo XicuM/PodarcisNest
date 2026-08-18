@@ -117,6 +117,29 @@
       box-shadow: 0 10px 25px rgba(41, 184, 219, 0.5);
     }
     .footer-note { text-align: center; margin-top: 24px; font-size: 13px; color: var(--text-muted); }
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 24px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 12px;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .tab-btn.active {
+      background: rgba(41, 184, 219, 0.15);
+      color: var(--accent-cyan);
+    }
     .footer-note a { color: var(--accent-cyan); text-decoration: none; }
     .error-banner {
       background: rgba(239, 68, 68, 0.15);
@@ -143,28 +166,36 @@
     </div>
     {% endif %}
 
-    {% if users %}
-    <div style="margin-bottom: 24px;">
-      <label class="form-label">Active Researcher Workspaces</label>
-      <div style="display: flex; flex-direction: column; gap: 10px;">
-        {% for u in users %}
-        <a href="/user/{{ u.username }}/" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; color: #ffffff; text-decoration: none; font-weight: 500; transition: all 0.2s;">
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <span style="font-size: 18px;">💻</span>
-            <span>{{ u.username }}</span>
-          </div>
-          <span style="font-size: 12px; color: var(--accent-cyan);">Open Workspace &rarr;</span>
-        </a>
-        {% endfor %}
-      </div>
+    <div class="tabs">
+      <button type="button" class="tab-btn active" id="tab-user" onclick="switchTab('user')">💻 Researcher</button>
+      <button type="button" class="tab-btn" id="tab-admin" onclick="switchTab('admin')">🛡️ Administrator</button>
     </div>
-    <div style="text-align: center; margin: 18px 0; color: var(--text-muted); font-size: 12px; position: relative;">
-      <span style="background: var(--bg-card); padding: 0 10px; position: relative; z-index: 1;">OR ADMIN ACCESS</span>
-      <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin-top: -8px;">
-    </div>
-    {% endif %}
 
-    <form action="/admin/login" method="POST">
+    <!-- User Login Form -->
+    <form id="form-user" action="/login/user" method="POST">
+      <div class="form-group">
+        <label class="form-label" for="username">Username</label>
+        {% if users %}
+        <select id="username-select" class="form-input" style="margin-bottom: 10px;" onchange="if(this.value) document.getElementById('username').value=this.value;">
+          <option value="">-- Select Registered Researcher --</option>
+          {% for u in users %}
+          <option value="{{ u.username }}">{{ u.username }} ({{ u.status }})</option>
+          {% endfor %}
+        </select>
+        {% endif %}
+        <input type="text" id="username" name="username" class="form-input" placeholder="e.g. alice" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="user-password">Password</label>
+        <input type="password" id="user-password" name="password" class="form-input" placeholder="Enter password" required>
+      </div>
+
+      <button type="submit" class="btn-submit">Enter Workspace</button>
+    </form>
+
+    <!-- Admin Login Form -->
+    <form id="form-admin" action="/login/admin" method="POST" style="display: none;">
       <div class="form-group">
         <label class="form-label" for="password">Admin Password</label>
         <input type="password" id="password" name="password" class="form-input" placeholder="Admin Password" required>
@@ -174,8 +205,29 @@
     </form>
 
     <div class="footer-note">
-      PodarcisNest Ingress Gateway &bull; Orthogonal Security
+      PodarcisNest Ingress Gateway &bull; Zero-Trust Isolation
     </div>
   </div>
+
+  <script>
+    function switchTab(mode) {
+      const userTab = document.getElementById('tab-user');
+      const adminTab = document.getElementById('tab-admin');
+      const userForm = document.getElementById('form-user');
+      const adminForm = document.getElementById('form-admin');
+
+      if (mode === 'user') {
+        userTab.classList.add('active');
+        adminTab.classList.remove('active');
+        userForm.style.display = 'block';
+        adminForm.style.display = 'none';
+      } else {
+        adminTab.classList.add('active');
+        userTab.classList.remove('active');
+        adminForm.style.display = 'block';
+        userForm.style.display = 'none';
+      }
+    }
+  </script>
 </body>
 </html>

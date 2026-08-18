@@ -1,10 +1,11 @@
-"""User container management and strict volume isolation for PodarcisNest multi-user server."""
+"""User container management, strict volume isolation, and resource governance for PodarcisNest."""
 
 import json
 import os
 import re
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -28,6 +29,26 @@ class UserManager:
         self.registry_file = self.data_dir / "users.json"
         self._init_admin()
         self._init_registry()
+
+    @staticmethod
+    def _atomic_write_json(file_path: Path, data: Any) -> None:
+        """Atomically persist JSON data using temporary file and atomic replace."""
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        temp_fd, temp_path = tempfile.mkstemp(
+            dir=str(file_path.parent),
+            prefix=f"{file_path.stem}_",
+            suffix=".tmp",
+        )
+        try:
+            with os.fdopen(temp_fd, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(temp_path, str(file_path))
+        except Exception:
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+            raise
 
     @staticmethod
     def hash_password(password: str, salt: Optional[str] = None) -> tuple[str, str]:
@@ -57,15 +78,16 @@ class UserManager:
                 "password_salt": admin_salt,
                 "created_at": "2026-08-01T00:00:00Z",
             }
-            self.admin_file.write_text(json.dumps(admin_data, indent=2), encoding="utf-8")
+            self._atomic_write_json(self.admin_file, admin_data)
 
     def authenticate_admin(self, password: str) -> bool:
         try:
-            admin_data = json.loads(self.admin_file.read_text(encoding="utf-8"))
-            stored_hash = admin_data.get("password_hash")
-            stored_salt = admin_data.get("password_salt")
-            if stored_hash and stored_salt:
-                return self.verify_password(password, stored_hash, stored_salt)
+            if self.admin_file.exists():
+                admin_data = json.loads(self.admin_file.read_text(encoding="utf-8"))
+                stored_hash = admin_data.get("password_hash")
+                stored_salt = admin_data.get("password_salt")
+                if stored_hash and stored_salt:
+                    return self.verify_password(password, stored_hash, stored_salt)
         except Exception:
             pass
         return False
@@ -78,11 +100,11 @@ class UserManager:
             "password_salt": salt,
             "updated_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
         }
-        self.admin_file.write_text(json.dumps(admin_data, indent=2), encoding="utf-8")
+        self._atomic_write_json(self.admin_file, admin_data)
 
     def _init_registry(self) -> None:
         if not self.registry_file.exists():
-            self.registry_file.write_text(json.dumps({}, indent=2), encoding="utf-8")
+            self._atomic_write_json(self.registry_file, {})
         else:
             # Clean out admin if stored in users.json
             reg = self.get_users_registry()
@@ -92,20 +114,24 @@ class UserManager:
 
     def get_users_registry(self) -> Dict[str, Any]:
         try:
-            return json.loads(self.registry_file.read_text(encoding="utf-8"))
+            if self.registry_file.exists():
+                return json.loads(self.registry_file.read_text(encoding="utf-8"))
         except Exception:
-            return {}
+            pass
+        return {}
 
     def save_users_registry(self, registry: Dict[str, Any]) -> None:
-        self.registry_file.write_text(json.dumps(registry, indent=2), encoding="utf-8")
+        self._atomic_write_json(self.registry_file, registry)
 
     def get_user_workspace(self, username: str) -> Path:
+        if not USER_NAME_REGEX.match(username) or username == "admin":
+            raise ValueError(f"Invalid username: {username}")
         ws = self.data_dir / username / "workspace"
         ws.mkdir(parents=True, exist_ok=True)
         return ws
 
     def list_containers(self) -> List[Dict[str, Any]]:
-        """List running/stopped user containers using docker CLI."""
+        """List running/stopped user containers using docker CLI with timeout."""
         try:
             res = subprocess.run(
                 [
@@ -120,6 +146,7 @@ class UserManager:
                 capture_output=True,
                 text=True,
                 check=False,
+                timeout=10,
             )
             containers = []
             if res.returncode == 0 and res.stdout.strip():
@@ -237,6 +264,7 @@ class UserManager:
                 ["docker", "image", "inspect", "podarcisnest-user:latest"],
                 capture_output=True,
                 check=False,
+                timeout=10,
             )
             if inspect_res.returncode == 0:
                 return True
@@ -246,6 +274,7 @@ class UserManager:
                     ["docker", "build", "-t", "podarcisnest-user:latest", str(self.root_dir)],
                     capture_output=True,
                     check=False,
+                    timeout=300,
                 )
                 return build_res.returncode == 0
         except Exception:
@@ -255,6 +284,8 @@ class UserManager:
     def start_user_container(self, username: str) -> Dict[str, Any]:
         if username == "admin":
             raise ValueError("Cannot start a container for 'admin'. Admin is a management role.")
+        if not USER_NAME_REGEX.match(username):
+            raise ValueError(f"Invalid username: '{username}'")
 
         registry = self.get_users_registry()
         if username not in registry:
@@ -280,7 +311,7 @@ class UserManager:
 
         port = self._allocate_free_port()
 
-        subprocess.run(["docker", "rm", "-f", container_name], capture_output=True, check=False)
+        subprocess.run(["docker", "rm", "-f", container_name], capture_output=True, check=False, timeout=15)
 
         cmd = [
             "docker",
@@ -292,6 +323,13 @@ class UserManager:
             f"podarcisnest.user={username}",
             "--label",
             f"podarcisnest.port={port}",
+            # Resource Limits (Quotas to prevent noisy-neighbor DoS)
+            "--memory",
+            "4g",
+            "--cpus",
+            "2.0",
+            "--pids-limit",
+            "256",
             "-v",
             f"{workspace_dir}:/home/coder/workspace",
             "-v",
@@ -313,7 +351,7 @@ class UserManager:
             "/home/coder/workspace",
         ]
 
-        res = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        res = subprocess.run(cmd, capture_output=True, text=True, check=False, timeout=30)
         if res.returncode != 0:
             return {
                 "name": container_name,
@@ -332,7 +370,7 @@ class UserManager:
 
     def stop_user_container(self, username: str) -> bool:
         container_name = f"podarcisnest-user-{username}"
-        res = subprocess.run(["docker", "rm", "-f", container_name], capture_output=True, check=False)
+        res = subprocess.run(["docker", "rm", "-f", container_name], capture_output=True, check=False, timeout=15)
         return res.returncode == 0
 
     def delete_user(self, username: str) -> bool:
@@ -351,3 +389,4 @@ class UserManager:
             self.save_users_registry(registry)
             return True
         return False
+
