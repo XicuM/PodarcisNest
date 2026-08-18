@@ -8,6 +8,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
     python3-venv \
+    python3-dev \
+    python-is-python3 \
     curl \
     git \
     build-essential \
@@ -26,8 +28,8 @@ RUN uv pip install --system --no-cache \
     "pytest" \
     "pyyaml>=6.0" \
     "yfinance" \
-    "markitdown>=0.1.7" \
-    "scipy>=1.15.3" \
+    "markitdown" \
+    "scipy" \
     "httpx>=0.27.0" \
     "websockets>=12.0" \
     "starlette>=0.37.0"
