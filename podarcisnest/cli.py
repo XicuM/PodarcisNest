@@ -192,14 +192,16 @@ def cmd_sync_templates(args):
 
 
 def cmd_service(args):
-    """Control systemctl service."""
+    """Control systemctl service for server or slack daemon."""
     action = args.service_action
-    console.print(f"Executing: systemctl {action} podarcisnest...")
-    res = subprocess.run(["systemctl", action, "podarcisnest"])
+    target = "podarcisnest-slack" if getattr(args, "slack", False) else "podarcisnest"
+    
+    console.print(f"Executing: systemctl {action} {target}...")
+    res = subprocess.run(["systemctl", action, target])
     if res.returncode == 0:
-        console.print(f"[bold green]✓ Successfully executed {action} on podarcisnest.service[/bold green]")
+        console.print(f"[bold green]✓ Successfully executed {action} on {target}.service[/bold green]")
     else:
-        console.print(f"[bold red]Failed to {action} podarcisnest.service (try with sudo or check journalctl)[/bold red]")
+        console.print(f"[bold red]Failed to {action} {target}.service (try with sudo, systemctl --user, or check journalctl -u {target})[/bold red]")
 
 
 def cmd_slack(args):
@@ -348,8 +350,9 @@ def main():
     q_parser.add_argument("prompt", help="Question or prompt to test (e.g. 'summarize last 7 days')")
 
     # service
-    svc_parser = subparsers.add_parser("service", help="Manage systemd service")
-    svc_parser.add_argument("service_action", choices=["start", "stop", "restart", "status"], help="Action to perform")
+    svc_parser = subparsers.add_parser("service", help="Manage systemd services (server or slack daemon)")
+    svc_parser.add_argument("service_action", choices=["start", "stop", "restart", "status", "enable", "disable"], help="Action to perform")
+    svc_parser.add_argument("--slack", action="store_true", help="Target podarcisnest-slack.service instead of podarcisnest.service")
 
     args = parser.parse_args()
 

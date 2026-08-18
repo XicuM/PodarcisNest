@@ -48,6 +48,8 @@ chmod +x setup.sh
 
 #### Custom Installation Flags:
 * `--port <port>`: Specify web interface listening port (default: `8080`).
+* `--with-slack`: **Activate Slack integration** (installs `slack-bolt` and registers `podarcisnest-slack.service`).
+* `--without-slack`: **Deactivate / skip Slack integration** (default).
 * `--no-systemd`: Skip systemd daemon registration (useful for development or Docker-in-Docker).
 * `--user-service`: Install as a user-level daemon (`systemctl --user`) instead of system-wide.
 * `--no-docker`: Skip automatic `podarcisnest-user:latest` Docker image build during setup.
@@ -115,13 +117,27 @@ podarcisnest sync-templates                   # Fetch/pull latest Podarcis maste
 
 ### 🤖 Slack Research Agent (`@podarcis`)
 
-PodarcisNest includes a built-in Slack agent operating in **Socket Mode** with scoped access to your shared research repository (`data/shared/`).
+PodarcisNest includes an optional Slack agent operating in **Socket Mode** with scoped read/write access to your shared research repository (`data/shared/`).
+
+#### Activating / Deactivating Slack
+
+| Operation | Command |
+|---|---|
+| **Activate during setup** | `./setup.sh --with-slack` |
+| **Deactivate during setup** | `./setup.sh` (default runs without Slack) |
+| **Activate post-setup** | `.venv/bin/pip install -e .[slack]` |
+| **Start Slack service (systemd)** | `podarcisnest service start --slack` (or `sudo systemctl start podarcisnest-slack`) |
+| **Stop Slack service (systemd)** | `podarcisnest service stop --slack` (or `sudo systemctl stop podarcisnest-slack`) |
+| **Disable Slack autostart** | `podarcisnest service disable --slack` (or `sudo systemctl disable podarcisnest-slack`) |
+| **Check Slack service status** | `podarcisnest service status --slack` |
+
+#### Configuration & Testing
 
 ```bash
-# Check Slack configuration and knowledge base status
+# 1. Check Slack configuration and knowledge base status
 podarcisnest slack status
 
-# Configure with OpenCode (default) or OpenAI-compatible server
+# 2. Configure with OpenCode (default) or OpenAI-compatible server
 podarcisnest slack config \
   --bot-token "xoxb-..." \
   --app-token "xapp-..." \
@@ -132,20 +148,29 @@ podarcisnest slack config \
 # (Optional: Anthropic or OpenAI cloud providers also supported)
 # podarcisnest slack config --provider anthropic --api-key sk-ant-...
 
-# Test knowledge retrieval locally from terminal
+# 3. Test knowledge retrieval locally from terminal
 podarcisnest slack query "Summarize recent notes from the past 7 days"
 
-# Start Slack listener in foreground
+# 4. Run Slack listener in foreground (debug mode)
 podarcisnest slack start
 ```
 
 > **Privacy Sandbox**: The Slack bot is strictly limited to `data/shared/wiki/` and `data/shared/sources/`. It cannot access individual user workspaces (`data/users/`).
 
 ### Linux Service Management (systemd)
+
+Manage background daemons for both the web server and the Slack bot:
+
 ```bash
+# Web Portal & Proxy Service
 podarcisnest service status
 podarcisnest service restart
 podarcisnest service stop
+
+# Slack Bot Daemon Service
+podarcisnest service status --slack
+podarcisnest service start --slack
+podarcisnest service stop --slack
 ```
 
 ---

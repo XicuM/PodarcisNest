@@ -16,6 +16,7 @@ while [[ "$#" -gt 0 ]]; do
         --user-service) USER_SERVICE=true ;;
         --no-docker) BUILD_DOCKER=false ;;
         --with-slack|--slack) INSTALL_SLACK=true ;;
+        --without-slack|--no-slack) INSTALL_SLACK=false ;;
         -h|--help)
             echo "Usage: ./setup.sh [OPTIONS]"
             echo "Options:"
@@ -23,7 +24,8 @@ while [[ "$#" -gt 0 ]]; do
             echo "  --no-systemd          Skip systemd service installation"
             echo "  --user-service        Install as systemd user service instead of system service"
             echo "  --no-docker           Skip Docker user image build"
-            echo "  --with-slack          Install Slack bot dependencies (slack-bolt)"
+            echo "  --with-slack          Activate Slack integration (installs slack-bolt & sets up slack service)"
+            echo "  --without-slack       Deactivate / skip Slack integration (default)"
             exit 0
             ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
@@ -51,9 +53,10 @@ echo "Installing core dependencies..."
 "$SCRIPT_DIR/.venv/bin/pip" install --upgrade pip
 
 if [ "$INSTALL_SLACK" = true ]; then
-    echo "Installing PodarcisNest with Slack integration..."
+    echo "Activating Slack integration dependencies..."
     "$SCRIPT_DIR/.venv/bin/pip" install -e "$SCRIPT_DIR[slack]"
 else
+    echo "Installing core server dependencies (Slack disabled by default)..."
     "$SCRIPT_DIR/.venv/bin/pip" install -e "$SCRIPT_DIR"
 fi
 
@@ -61,6 +64,7 @@ fi
 mkdir -p "$SCRIPT_DIR/data/users"
 mkdir -p "$SCRIPT_DIR/data/shared/wiki"
 mkdir -p "$SCRIPT_DIR/data/shared/sources"
+mkdir -p "$SCRIPT_DIR/data/logs"
 
 # Build Docker user image
 if [ "$BUILD_DOCKER" = true ]; then
@@ -87,7 +91,7 @@ if [ "$INSTALL_SYSTEMD" = true ]; then
 fi
 
 if [ "$INSTALL_SYSTEMD" = true ]; then
-    echo "Configuring systemd service..."
+    echo "Configuring systemd server service..."
     CURRENT_USER="$(whoami)"
     PYTHON_BIN="$SCRIPT_DIR/.venv/bin/python"
 
@@ -105,7 +109,20 @@ if [ "$INSTALL_SYSTEMD" = true ]; then
         systemctl --user daemon-reload
         systemctl --user enable podarcisnest
         systemctl --user restart podarcisnest
-        echo "✓ Enabled and started systemd user service (podarcisnest)."
+        echo "✓ Enabled and started systemd user service (podarcisnest.service)."
+
+        if [ "$INSTALL_SLACK" = true ]; then
+            SLACK_SERVICE_CONTENT=$(sed \
+                -e "s|{{USER}}|$CURRENT_USER|g" \
+                -e "s|{{INSTALL_DIR}}|$SCRIPT_DIR|g" \
+                -e "s|{{PYTHON_BIN}}|$PYTHON_BIN|g" \
+                "$SCRIPT_DIR/podarcisnest-slack.service.template")
+            echo "$SLACK_SERVICE_CONTENT" > "$SERVICE_DIR/podarcisnest-slack.service"
+            systemctl --user daemon-reload
+            systemctl --user enable podarcisnest-slack
+            echo "✓ Configured and enabled Slack user daemon (podarcisnest-slack.service)."
+            echo "  (Configure tokens via 'podarcisnest slack config' then start via 'systemctl --user start podarcisnest-slack')"
+        fi
     else
         TMP_SERVICE="/tmp/podarcisnest.service"
         echo "$SERVICE_CONTENT" > "$TMP_SERVICE"
@@ -114,7 +131,22 @@ if [ "$INSTALL_SYSTEMD" = true ]; then
             sudo systemctl daemon-reload
             sudo systemctl enable podarcisnest
             sudo systemctl restart podarcisnest
-            echo "✓ Enabled and started systemd service (podarcisnest)."
+            echo "✓ Enabled and started systemd service (podarcisnest.service)."
+
+            if [ "$INSTALL_SLACK" = true ]; then
+                SLACK_SERVICE_CONTENT=$(sed \
+                    -e "s|{{USER}}|$CURRENT_USER|g" \
+                    -e "s|{{INSTALL_DIR}}|$SCRIPT_DIR|g" \
+                    -e "s|{{PYTHON_BIN}}|$PYTHON_BIN|g" \
+                    "$SCRIPT_DIR/podarcisnest-slack.service.template")
+                TMP_SLACK="/tmp/podarcisnest-slack.service"
+                echo "$SLACK_SERVICE_CONTENT" > "$TMP_SLACK"
+                sudo cp "$TMP_SLACK" /etc/systemd/system/podarcisnest-slack.service
+                sudo systemctl daemon-reload
+                sudo systemctl enable podarcisnest-slack
+                echo "✓ Configured and enabled Slack daemon (podarcisnest-slack.service)."
+                echo "  (Configure tokens via 'podarcisnest slack config' then start via 'sudo systemctl start podarcisnest-slack')"
+            fi
         else
             echo "Warning: sudo not found. Please copy $TMP_SERVICE to /etc/systemd/system/podarcisnest.service manually."
         fi
@@ -129,6 +161,15 @@ echo "Web Portal: http://localhost:$PORT/login"
 echo "Default Admin Credentials:"
 echo "  Username: admin"
 echo "  Password: admin"
+echo ""
+echo "Slack Integration Status:"
+if [ "$INSTALL_SLACK" = true ]; then
+    echo "  Status: ACTIVATED"
+    echo "  Next steps: Configure tokens with '$SCRIPT_DIR/.venv/bin/podarcisnest slack config'"
+else
+    echo "  Status: DEACTIVATED (Default)"
+    echo "  To activate later: Run './setup.sh --with-slack' or 'pip install -e .[slack]'"
+fi
 echo ""
 echo "Debug CLI commands:"
 echo "  $SCRIPT_DIR/.venv/bin/podarcisnest status"
