@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import path from 'path';
+import fs from 'fs-extra';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { UserManager } from '../server/user-manager.js';
@@ -254,9 +255,16 @@ program
 // Service command
 program
   .command('service <action>')
-  .description('Manage systemd services (start, stop, restart, status, enable, disable)')
+  .description('Manage systemd services (start, stop, restart, status, enable, disable, uninstall)')
   .option('--slack', 'Target podarcisnest-slack.service instead of podarcisnest.service')
   .action((action, opts) => {
+    if (action === 'uninstall') {
+      const uninstallScript = path.join(rootDir, 'uninstall.sh');
+      if (fs.existsSync(uninstallScript)) {
+        spawnSync(uninstallScript, [], { stdio: 'inherit' });
+        return;
+      }
+    }
     const target = opts.slack ? 'podarcisnest-slack' : 'podarcisnest';
     console.log(`Executing: systemctl ${action} ${target}...`);
     const res = spawnSync('systemctl', [action, target], { stdio: 'inherit' });
