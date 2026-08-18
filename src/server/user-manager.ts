@@ -120,7 +120,7 @@ export class UserManager {
     if (!USER_NAME_REGEX.test(username) || username === 'admin') {
       throw new Error(`Invalid username: ${username}`);
     }
-    const ws = path.join(this.dataDir, username, 'workspace');
+    const ws = path.join(this.dataDir, username);
     fs.ensureDirSync(ws);
     return ws;
   }
@@ -213,7 +213,12 @@ export class UserManager {
     return null;
   }
 
-  public createUser(username: string, role: 'user' | 'admin' = 'user', password?: string): UserRecord {
+  public createUser(
+    username: string,
+    role: 'user' | 'admin' = 'user',
+    password?: string,
+    sourcesBackend: 'local' | 'gdrive' = 'local'
+  ): UserRecord {
     if (username === 'admin') {
       throw new Error("Cannot create a user named 'admin'. Admin is a dedicated management role.");
     }
@@ -227,7 +232,7 @@ export class UserManager {
     }
 
     const workspaceDir = this.getUserWorkspace(username);
-    seedUserWorkspace(workspaceDir, username, this.rootDir);
+    seedUserWorkspace(workspaceDir, username, this.rootDir, sourcesBackend);
 
     const userPwd = password || `${username}123`;
     const { hash, salt } = UserManager.hashPassword(userPwd);
@@ -348,11 +353,11 @@ export class UserManager {
       '--pids-limit',
       '256',
       '-v',
-      `${workspaceDir}:/home/coder/workspace`,
+      `${workspaceDir}:/home/coder/${username}`,
       '-v',
-      `${sharedWiki}:/home/coder/workspace/shared/wiki`,
+      `${sharedWiki}:/home/coder/${username}/wiki`,
       '-v',
-      `${sharedSources}:/home/coder/workspace/shared/sources`,
+      `${sharedSources}:/home/coder/${username}/sources`,
       '-e',
       `PODARCIS_USER=${username}`,
       '-p',
@@ -365,7 +370,7 @@ export class UserManager {
       '0.0.0.0:8000',
       '--auth',
       'none',
-      '/home/coder/workspace',
+      `/home/coder/${username}`,
     ];
 
     const res = spawnSync('docker', cmd, { encoding: 'utf-8', timeout: 30000 });

@@ -265,10 +265,15 @@ export function createServer(rootDir: string = defaultRootDir): FastifyInstance 
     if (!req.session.get('is_admin')) {
       return reply.code(403).send({ error: 'Unauthorized' });
     }
-    const body = req.body as { username?: string; role?: 'user' | 'admin'; password?: string };
+    const body = req.body as {
+      username?: string;
+      role?: 'user' | 'admin';
+      password?: string;
+      sources_backend?: 'local' | 'gdrive';
+    };
     const username = (body.username || '').trim().toLowerCase();
     try {
-      const user = userManager.createUser(username, body.role || 'user', body.password);
+      const user = userManager.createUser(username, body.role || 'user', body.password, body.sources_backend || 'local');
       return reply.send({ success: true, user });
     } catch (err: any) {
       return reply.code(400).send({ error: err.message });
@@ -283,21 +288,6 @@ export function createServer(rootDir: string = defaultRootDir): FastifyInstance 
     const username = body.username || '';
     try {
       userManager.deleteUser(username);
-      return reply.send({ success: true });
-    } catch (err: any) {
-      return reply.code(400).send({ error: err.message });
-    }
-  });
-
-  app.post('/api/admin/users/reseed', async (req, reply) => {
-    if (!req.session.get('is_admin')) {
-      return reply.code(403).send({ error: 'Unauthorized' });
-    }
-    const body = req.body as { username?: string };
-    const username = body.username || '';
-    try {
-      const ws = userManager.getUserWorkspace(username);
-      seedUserWorkspace(ws, username, rootDir);
       return reply.send({ success: true });
     } catch (err: any) {
       return reply.code(400).send({ error: err.message });

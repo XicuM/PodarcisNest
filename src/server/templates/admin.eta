@@ -209,7 +209,6 @@
               </td>
               <td class="action-btns">
                 <% if (user.username !== 'admin') { %>
-                <button class="btn" style="background: rgba(41, 184, 219, 0.15); color: var(--accent-cyan);" onclick="reseedUser('<%= user.username %>')">🌱 Seed Podarcis</button>
                 <button class="btn btn-danger" onclick="deleteUser('<%= user.username %>')">Delete</button>
                 <% } %>
               </td>
@@ -244,21 +243,6 @@
         alert(data.error || 'Failed to create user');
       }
     });
-
-    async function reseedUser(username) {
-      if (!confirm(`Re-seed / sync Podarcis .agents, tools, and OKF layout for ${username}?`)) return;
-      const res = await fetch('/api/admin/users/reseed', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        alert(`Podarcis workspace successfully seeded for ${username}`);
-      } else {
-        alert(data.error || 'Failed to seed workspace');
-      }
-    }
 
     async function deleteUser(username) {
       if (!confirm(`Delete user container and workspace for ${username}?`)) return;

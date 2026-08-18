@@ -3,41 +3,47 @@ import fs from 'fs-extra';
 import os from 'os';
 import { spawnSync } from 'child_process';
 
-export const DEFAULT_MCP_JSON = {
-  mcpServers: {
-    podarcis: {
-      command: 'podarcis-mcp',
-      args: ['--config', '/home/coder/workspace/.podarcis/config.yaml'],
-      env: {
-        PROJECT_ROOT: '/home/coder/workspace',
+export function getMcpJson(username: string) {
+  return {
+    mcpServers: {
+      podarcis: {
+        command: 'podarcis-mcp',
+        args: ['--config', `/home/coder/${username}/.podarcis/config.yaml`],
+        env: {
+          PROJECT_ROOT: `/home/coder/${username}`,
+        },
       },
     },
-  },
-};
+  };
+}
 
-export const DEFAULT_OPENCODE_JSON = {
-  $schema: 'https://opencode.ai/config.json',
-  mcp: {
-    podarcis: {
-      type: 'local',
-      command: ['podarcis-mcp', '--config', '/home/coder/workspace/.podarcis/config.yaml'],
-      environment: {
-        PROJECT_ROOT: '/home/coder/workspace',
+export function getOpencodeJson(username: string) {
+  return {
+    $schema: 'https://opencode.ai/config.json',
+    mcp: {
+      podarcis: {
+        type: 'local',
+        command: ['podarcis-mcp', '--config', `/home/coder/${username}/.podarcis/config.yaml`],
+        environment: {
+          PROJECT_ROOT: `/home/coder/${username}`,
+        },
+        enabled: true,
       },
-      enabled: true,
     },
-  },
-};
+  };
+}
 
-export const DEFAULT_CONFIG_YAML = `repositories:
-  sources: local
+export function getConfigYaml(sourcesBackend: 'local' | 'gdrive' = 'local') {
+  return `repositories:
+  sources: ${sourcesBackend}
   wiki: local
   workspace: local
 backend: opencode
-sources_backend: local
+sources_backend: ${sourcesBackend}
 engines:
   qmd: true
 `;
+}
 
 export const DEFAULT_VSCODE_SETTINGS_JSON = {
   'window.title': '🦎 Podarcis | Knowledge Base',
@@ -376,7 +382,12 @@ export function syncTemplates(rootDir: string): boolean {
   }
 }
 
-export function seedUserWorkspace(workspaceDir: string, username: string, rootDir?: string): void {
+export function seedUserWorkspace(
+  workspaceDir: string,
+  username: string,
+  rootDir?: string,
+  sourcesBackend: 'local' | 'gdrive' = 'local'
+): void {
   const resolvedRoot = rootDir ? path.resolve(rootDir) : path.resolve(__dirname, '..', '..');
   fs.ensureDirSync(workspaceDir);
 
@@ -435,23 +446,39 @@ export function seedUserWorkspace(workspaceDir: string, username: string, rootDi
     fs.writeFileSync(auditorFile, AUDITOR_MD, 'utf-8');
   }
 
+  // Scaffold .gitignore (exclude mounted shared directories from user workspace git tracking)
+  const gitignore = path.join(workspaceDir, '.gitignore');
+  if (!fs.existsSync(gitignore)) {
+    fs.writeFileSync(
+      gitignore,
+      `# Decoupled Shared Repositories (Mounted into Container)
+wiki/
+sources/
+
+# Environment & Build artifacts
+.venv/
+__pycache__/
+*.pyc
+node_modules/
+.podarcis/logs/
+`,
+      'utf-8'
+    );
+  }
+
   // Scaffold AGENTS.md
   const agentsMd = path.join(workspaceDir, 'AGENTS.md');
   if (!fs.existsSync(agentsMd)) {
     fs.writeFileSync(agentsMd, DEFAULT_AGENTS_MD, 'utf-8');
   }
 
-  // Scaffold .mcp.json
+  // Scaffold .mcp.json configured for container /home/coder/<username>
   const mcpJson = path.join(workspaceDir, '.mcp.json');
-  if (!fs.existsSync(mcpJson)) {
-    fs.writeFileSync(mcpJson, JSON.stringify(DEFAULT_MCP_JSON, null, 2), 'utf-8');
-  }
+  fs.writeFileSync(mcpJson, JSON.stringify(getMcpJson(username), null, 2), 'utf-8');
 
-  // Scaffold opencode.json
+  // Scaffold opencode.json configured for container /home/coder/<username>
   const opencodeJson = path.join(workspaceDir, 'opencode.json');
-  if (!fs.existsSync(opencodeJson)) {
-    fs.writeFileSync(opencodeJson, JSON.stringify(DEFAULT_OPENCODE_JSON, null, 2), 'utf-8');
-  }
+  fs.writeFileSync(opencodeJson, JSON.stringify(getOpencodeJson(username), null, 2), 'utf-8');
 
   // Scaffold .clinerules
   const clinerules = path.join(workspaceDir, '.clinerules');
@@ -459,11 +486,9 @@ export function seedUserWorkspace(workspaceDir: string, username: string, rootDi
     fs.writeFileSync(clinerules, '.agents\nAGENTS.md\n', 'utf-8');
   }
 
-  // Scaffold .podarcis/config.yaml
+  // Scaffold .podarcis/config.yaml configured for container /home/coder/<username>
   const podarcisCfg = path.join(workspaceDir, '.podarcis', 'config.yaml');
-  if (!fs.existsSync(podarcisCfg)) {
-    fs.writeFileSync(podarcisCfg, DEFAULT_CONFIG_YAML, 'utf-8');
-  }
+  fs.writeFileSync(podarcisCfg, getConfigYaml(sourcesBackend), 'utf-8');
 
   // Scaffold wiki/_index.md
   const wikiIndex = path.join(workspaceDir, 'wiki', '_index.md');

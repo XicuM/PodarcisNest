@@ -106,15 +106,16 @@ userCmd
 
 userCmd
   .command('add <username>')
-  .description('Add a new researcher user')
+  .description('Add a new researcher user (automatically initializes Podarcis workspace)')
   .option('-p, --password <password>', 'User password')
   .option('--role <role>', 'User role', 'user')
+  .option('--sources-backend <backend>', 'Sources backend (local or gdrive)', 'local')
   .option('-r, --run', 'Start user container immediately')
   .action(async (username, opts) => {
     const um = new UserManager(rootDir);
     try {
-      um.createUser(username, opts.role, opts.password);
-      console.log(chalk.bold.green(`✓ User '${username}' created successfully.`));
+      um.createUser(username, opts.role, opts.password, opts.sourcesBackend as 'local' | 'gdrive');
+      console.log(chalk.bold.green(`✓ User '${username}' created and Podarcis workspace initialized.`));
       if (opts.run) {
         const res = await um.startUserContainer(username);
         if (res.status && res.status.includes('Up')) {
@@ -204,20 +205,6 @@ userCmd
       } else {
         console.log(chalk.yellow(`Could not stop container for user '${username}'.`));
       }
-    } catch (err: any) {
-      console.error(chalk.bold.red('Error:'), err.message);
-    }
-  });
-
-userCmd
-  .command('seed <username>')
-  .description('Seed or re-initialize Podarcis .agents and OKF layout for user')
-  .action((username) => {
-    const um = new UserManager(rootDir);
-    try {
-      const ws = um.getUserWorkspace(username);
-      seedUserWorkspace(ws, username, rootDir);
-      console.log(chalk.bold.green(`✓ Seeded Podarcis workspace for user '${username}'.`));
     } catch (err: any) {
       console.error(chalk.bold.red('Error:'), err.message);
     }
