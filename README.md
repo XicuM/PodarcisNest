@@ -61,6 +61,12 @@ Once started (via systemd, docker compose, or `podarcisnest run`), navigate to:
 
 Logging in as `admin` redirects to the **Admin Dashboard** (`/admin`), where you can create users, launch workspaces, configure shared Git mounts, and manage active sessions.
 
+![PodarcisNest Login Portal](img/login.png)
+
+Logging in as a researcher routes directly to the dedicated workspace container running VS Code Web:
+
+![Podarcis Workspace Container](img/container.png)
+
 ---
 
 ## 🛠 Administration & Debug CLI
