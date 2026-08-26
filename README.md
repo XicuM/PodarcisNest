@@ -43,6 +43,7 @@ chmod +x setup.sh
 
 #### Custom Installation Flags:
 * `--port <port>`: Specify web interface listening port (default: `8080`).
+* `--admin-password <pass>`: Set custom administrator password during initial setup.
 * `--no-systemd`: Skip systemd daemon registration (useful for development or Docker-in-Docker).
 * `--user-service`: Install as a user-level daemon (`systemctl --user`) instead of system-wide.
 * `--no-docker`: Skip automatic `podarcisnest-user:latest` Docker image build during setup.
@@ -51,14 +52,14 @@ chmod +x setup.sh
 
 ### 2. Accessing the Web Portal
 
-Once started (via systemd or `podarcisnest run`), navigate to:
+Once started (via systemd, docker compose, or `podarcisnest run`), navigate to:
 
 👉 **`http://localhost:8080/login`**
 
 * **Default Admin Username**: `admin`
-* **Default Admin Password**: `admin`
+* **Default Admin Password**: `admin` (or the password configured via `--admin-password`)
 
-Logging in as `admin` redirects to the **Admin Dashboard** (`/admin`), where you can create users, launch workspaces, and manage active sessions.
+Logging in as `admin` redirects to the **Admin Dashboard** (`/admin`), where you can create users, launch workspaces, configure shared Git mounts, and manage active sessions.
 
 ---
 
@@ -72,6 +73,9 @@ Run via `podarcisnest` (if installed globally) or `./bin/podarcisnest.js`:
 
 # Run server in the foreground with auto-reload (debug mode)
 ./bin/podarcisnest.js run --port 8080
+
+# Administrator Security
+./bin/podarcisnest.js admin password mynewadminpassword # Reset administrator password
 
 # List all registered users and workspaces
 ./bin/podarcisnest.js user list
@@ -94,6 +98,28 @@ Run via `podarcisnest` (if installed globally) or `./bin/podarcisnest.js`:
 
 # Template Asset Synchronization
 ./bin/podarcisnest.js sync-templates                   # Fetch/pull latest Podarcis master branch templates
+```
+
+---
+
+## 🌐 Production Deployment & TLS Reverse Proxy
+
+For production deployments on a public domain, PodarcisNest includes turnkey configurations:
+
+### Option A: Automated HTTPS with Caddy
+1. Copy `Caddyfile.template` to `Caddyfile` and set your domain:
+   ```bash
+   cp Caddyfile.template Caddyfile
+   caddy run
+   ```
+2. Caddy will automatically provision and renew Let's Encrypt certificates with HTTP/WebSocket proxying.
+
+### Option B: Nginx Reverse Proxy
+Use `nginx.conf.template` with certbot/SSL certificates to proxy incoming HTTPS and WebSocket traffic.
+
+### Option C: Docker Compose
+```bash
+docker compose up -d
 ```
 
 ### 🤖 Slack Research Agent (`@podarcis`)
