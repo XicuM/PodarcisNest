@@ -96,6 +96,37 @@ describe('Auth, Security & Configuration', () => {
     expect(updated.resources?.pids_limit).toBe(512);
   });
 
+  it('stores and propagates Cline OpenAI-compatible API configuration to user workspaces', () => {
+    const rm = new RepoManager(tmpDir);
+    const um = new UserManager(tmpDir);
+
+    // Create a researcher workspace
+    um.createUser('alice', 'alicepass');
+    const ws = um.getUserWorkspace('alice');
+
+    // Configure Cline API via RepoManager
+    rm.saveGlobalConfig({
+      cline: {
+        api_provider: 'openai-compatible',
+        base_url: 'http://127.0.0.1:11434/v1',
+        api_key: 'sk-test-cline-key',
+        model_id: 'deepseek-coder-v2',
+      },
+    });
+
+    // Synchronize to all users
+    um.syncAllUserClineSettings();
+
+    // Verify .vscode/settings.json in user's workspace
+    const userSettingsFile = path.join(ws, '.vscode', 'settings.json');
+    expect(fs.existsSync(userSettingsFile)).toBe(true);
+    const userSettings = fs.readJsonSync(userSettingsFile);
+    expect(userSettings['cline.apiProvider']).toBe('openai-compatible');
+    expect(userSettings['cline.openAiBaseUrl']).toBe('http://127.0.0.1:11434/v1');
+    expect(userSettings['cline.openAiApiKey']).toBe('sk-test-cline-key');
+    expect(userSettings['cline.openAiModelId']).toBe('deepseek-coder-v2');
+  });
+
   it('instantiates Fastify server with security plugins registered', async () => {
     const app = createServer(tmpDir);
     expect(app).toBeDefined();

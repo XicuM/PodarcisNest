@@ -308,6 +308,9 @@ export function createServer(rootDir: string = defaultRootDir): FastifyInstance 
     const body = req.body as any;
     try {
       const updated = repoManager.saveGlobalConfig(body);
+      if (body.cline) {
+        userManager.syncAllUserClineSettings();
+      }
       return reply.send({ success: true, config: updated });
     } catch (err: any) {
       return reply.code(400).send({ error: err.message });

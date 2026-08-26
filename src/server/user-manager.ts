@@ -365,6 +365,23 @@ export class UserManager {
       `${sharedSources}:/home/coder/${username}/sources`,
       '-e',
       `PODARCIS_USER=${username}`,
+    ];
+
+    if (globalCfg.cline?.base_url) {
+      cmd.push('-e', `OPENAI_BASE_URL=${globalCfg.cline.base_url}`);
+      cmd.push('-e', `OPENAI_API_BASE=${globalCfg.cline.base_url}`);
+      cmd.push('-e', `CLINE_BASE_URL=${globalCfg.cline.base_url}`);
+    }
+    if (globalCfg.cline?.api_key) {
+      cmd.push('-e', `OPENAI_API_KEY=${globalCfg.cline.api_key}`);
+      cmd.push('-e', `CLINE_API_KEY=${globalCfg.cline.api_key}`);
+    }
+    if (globalCfg.cline?.model_id) {
+      cmd.push('-e', `OPENAI_MODEL=${globalCfg.cline.model_id}`);
+      cmd.push('-e', `CLINE_MODEL=${globalCfg.cline.model_id}`);
+    }
+
+    cmd.push(
       '-p',
       `127.0.0.1:${port}:8000`,
       '--restart',
@@ -375,8 +392,8 @@ export class UserManager {
       '0.0.0.0:8000',
       '--auth',
       'none',
-      `/home/coder/${username}`,
-    ];
+      `/home/coder/${username}`
+    );
 
     const res = spawnSync('docker', cmd, { encoding: 'utf-8', timeout: 30000 });
     if (res.status !== 0) {
@@ -395,6 +412,16 @@ export class UserManager {
       status: 'Up (running)',
       port: String(port),
     };
+  }
+
+  public syncAllUserClineSettings(): void {
+    const registry = this.getUsersRegistry();
+    for (const username of Object.keys(registry)) {
+      try {
+        const ws = this.getUserWorkspace(username);
+        seedUserWorkspace(ws, username, this.rootDir);
+      } catch {}
+    }
   }
 
   public stopUserContainer(username: string): boolean {

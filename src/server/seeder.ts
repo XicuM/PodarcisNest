@@ -2,6 +2,7 @@ import path from 'path';
 import fs from 'fs-extra';
 import os from 'os';
 import { spawnSync } from 'child_process';
+import { RepoManager } from './repo-manager.js';
 
 export function getMcpJson(username: string) {
   return {
@@ -569,13 +570,36 @@ node_modules/
   fs.ensureDirSync(vscodeDir);
 
   const wsSettings = path.join(vscodeDir, 'settings.json');
-  if (!fs.existsSync(wsSettings)) {
-    if (fs.existsSync(tplSettings)) {
-      fs.copyFileSync(tplSettings, wsSettings);
-    } else {
-      fs.writeFileSync(wsSettings, JSON.stringify(DEFAULT_VSCODE_SETTINGS_JSON, null, 2), 'utf-8');
+  let settingsObj: Record<string, any> = {};
+  if (fs.existsSync(wsSettings)) {
+    try {
+      settingsObj = fs.readJsonSync(wsSettings);
+    } catch {
+      settingsObj = { ...DEFAULT_VSCODE_SETTINGS_JSON };
     }
+  } else if (fs.existsSync(tplSettings)) {
+    try {
+      settingsObj = fs.readJsonSync(tplSettings);
+    } catch {
+      settingsObj = { ...DEFAULT_VSCODE_SETTINGS_JSON };
+    }
+  } else {
+    settingsObj = { ...DEFAULT_VSCODE_SETTINGS_JSON };
   }
+
+  // Inject global Cline API config if configured
+  try {
+    const rm = new RepoManager(resolvedRoot);
+    const globalCfg = rm.getGlobalConfig();
+    if (globalCfg.cline?.base_url || globalCfg.cline?.api_key || globalCfg.cline?.model_id) {
+      settingsObj['cline.apiProvider'] = globalCfg.cline.api_provider || 'openai-compatible';
+      if (globalCfg.cline.base_url) settingsObj['cline.openAiBaseUrl'] = globalCfg.cline.base_url;
+      if (globalCfg.cline.api_key) settingsObj['cline.openAiApiKey'] = globalCfg.cline.api_key;
+      if (globalCfg.cline.model_id) settingsObj['cline.openAiModelId'] = globalCfg.cline.model_id;
+    }
+  } catch {}
+
+  fs.writeFileSync(wsSettings, JSON.stringify(settingsObj, null, 2), 'utf-8');
 
   const wsExtensions = path.join(vscodeDir, 'extensions.json');
   if (!fs.existsSync(wsExtensions)) {

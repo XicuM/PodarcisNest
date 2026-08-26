@@ -8,6 +8,13 @@ export interface ContainerResourcesConfig {
   pids_limit: number;
 }
 
+export interface ClineApiConfig {
+  api_provider: 'openai-compatible' | 'openai' | 'anthropic' | 'openrouter' | 'custom' | string;
+  base_url: string;
+  api_key: string;
+  model_id: string;
+}
+
 export interface GlobalPodarcisConfig {
   repositories: {
     wiki: string;
@@ -21,6 +28,7 @@ export interface GlobalPodarcisConfig {
     [key: string]: any;
   };
   resources?: ContainerResourcesConfig;
+  cline?: ClineApiConfig;
 }
 
 export interface SharedRepoInfo {
@@ -67,6 +75,17 @@ export class RepoManager {
         engines: {
           qmd: true,
         },
+        resources: {
+          memory_limit: '4g',
+          cpus_limit: '2.0',
+          pids_limit: 256,
+        },
+        cline: {
+          api_provider: 'openai-compatible',
+          base_url: '',
+          api_key: '',
+          model_id: '',
+        },
       };
       fs.writeFileSync(this.configFile, JSON.stringify(defaultConfig, null, 2), 'utf-8');
     }
@@ -92,6 +111,12 @@ export class RepoManager {
             cpus_limit: raw.resources?.cpus_limit || '2.0',
             pids_limit: raw.resources?.pids_limit || 256,
           },
+          cline: {
+            api_provider: raw.cline?.api_provider || 'openai-compatible',
+            base_url: raw.cline?.base_url || '',
+            api_key: raw.cline?.api_key || '',
+            model_id: raw.cline?.model_id || '',
+          },
         };
       }
     } catch {}
@@ -110,6 +135,12 @@ export class RepoManager {
         memory_limit: '4g',
         cpus_limit: '2.0',
         pids_limit: 256,
+      },
+      cline: {
+        api_provider: 'openai-compatible',
+        base_url: '',
+        api_key: '',
+        model_id: '',
       },
     };
   }
@@ -130,6 +161,10 @@ export class RepoManager {
       resources: {
         ...current.resources,
         ...(config.resources || {}),
+      },
+      cline: {
+        ...current.cline,
+        ...(config.cline || {}),
       },
     };
 

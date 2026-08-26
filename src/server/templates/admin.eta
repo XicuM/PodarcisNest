@@ -207,6 +207,7 @@
     const wikiRepo = it.wikiRepo || {};
     const sourcesRepo = it.sourcesRepo || {};
     const userList = it.users || [];
+    const clineCfg = cfg.cline || {};
   %>
 
   <div class="container">
@@ -315,6 +316,48 @@
           </div>
         </div>
 
+      </div>
+
+      <!-- 3. CLINE & AI AGENT OPENAI-COMPATIBLE API CONFIGURATION -->
+      <div class="repo-subcard" style="margin-top: 18px;">
+        <div class="repo-header">
+          <div class="repo-name">🤖 Shared Cline & AI Agent API (OpenAI-Compatible)</div>
+          <div>
+            <span class="badge badge-success">Inherited by All User Workspaces</span>
+          </div>
+        </div>
+        <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 12px; line-height: 1.5;">
+          Configure a centralized OpenAI-compatible LLM endpoint (e.g. OpenAI, OpenCode, Ollama, vLLM, DeepSeek, OpenRouter, or LM Studio). This configuration is automatically synchronized into all researcher VS Code Web workspaces (<code>.vscode/settings.json</code>) and container runtime environment variables.
+        </p>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+          <div class="form-group">
+            <label class="form-label">API Provider Mode:</label>
+            <select id="cfg-cline-provider" class="form-select">
+              <option value="openai-compatible" <%= (clineCfg.api_provider === 'openai-compatible' || !clineCfg.api_provider) ? 'selected' : '' %>>openai-compatible (Custom OpenAI Endpoint / OpenCode / Ollama / vLLM)</option>
+              <option value="openai" <%= (clineCfg.api_provider === 'openai') ? 'selected' : '' %>>openai (Official OpenAI)</option>
+              <option value="anthropic" <%= (clineCfg.api_provider === 'anthropic') ? 'selected' : '' %>>anthropic (Anthropic Claude API)</option>
+              <option value="openrouter" <%= (clineCfg.api_provider === 'openrouter') ? 'selected' : '' %>>openrouter (OpenRouter Gateway)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Model ID:</label>
+            <input type="text" id="cfg-cline-model" class="form-input" value="<%= clineCfg.model_id || '' %>" placeholder="e.g. gpt-4o, claude-3-5-sonnet, deepseek-coder, qwen2.5-coder">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 10px;">
+          <div class="form-group">
+            <label class="form-label">Base URL (OpenAI-Compatible Endpoint):</label>
+            <input type="text" id="cfg-cline-base-url" class="form-input" value="<%= clineCfg.base_url || '' %>" placeholder="e.g. https://api.openai.com/v1 or http://host.docker.internal:11434/v1">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">API Key / Token:</label>
+            <input type="password" id="cfg-cline-api-key" class="form-input" value="<%= clineCfg.api_key || '' %>" placeholder="sk-...">
+          </div>
+        </div>
       </div>
 
       <!-- RUNTIME & ENGINES SECTION -->
@@ -444,6 +487,11 @@
       const harness = document.getElementById('cfg-harness').value;
       const qmd = document.getElementById('cfg-qmd').checked;
 
+      const clineProvider = document.getElementById('cfg-cline-provider')?.value || 'openai-compatible';
+      const clineBaseUrl = (document.getElementById('cfg-cline-base-url')?.value || '').trim();
+      const clineApiKey = (document.getElementById('cfg-cline-api-key')?.value || '').trim();
+      const clineModel = (document.getElementById('cfg-cline-model')?.value || '').trim();
+
       const payload = {
         repositories: {
           wiki: wikiVal,
@@ -454,6 +502,12 @@
         sources_backend: sourcesMode === 'gdrive' ? 'gdrive' : 'local',
         engines: {
           qmd: qmd
+        },
+        cline: {
+          api_provider: clineProvider,
+          base_url: clineBaseUrl,
+          api_key: clineApiKey,
+          model_id: clineModel
         }
       };
 
@@ -465,7 +519,7 @@
         });
         const data = await res.json();
         if (data.success) {
-          showToast('✅ Global Podarcis configuration updated successfully!');
+          showToast('✅ Server & Cline configuration saved and synchronized to all workspaces!');
         } else {
           alert(data.error || 'Failed to save configuration');
         }
