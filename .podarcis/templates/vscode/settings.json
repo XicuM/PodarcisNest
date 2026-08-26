@@ -1,6 +1,7 @@
 {
   "window.title": "🦎 Podarcis | Knowledge Base",
   "files.exclude": {
+    "**/.*": true,
     "**/*.css": true,
     "**/*.js": true,
     "**/*.json": true,

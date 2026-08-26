@@ -6,7 +6,7 @@
   <title>PodarcisNest Admin Panel</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg-primary: #0a0d14;
@@ -18,7 +18,7 @@
       --accent-red: #ef4444;
       --text-main: #f3f4f6;
       --text-muted: #9ca3af;
-      --border-glow: rgba(41, 184, 219, 0.15);
+      --border-glow: rgba(41, 184, 219, 0.2);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -28,17 +28,17 @@
       min-height: 100vh;
       padding: 30px 20px;
     }
-    .container { max-width: 1100px; margin: 0 auto; }
+    .container { max-width: 1160px; margin: 0 auto; }
     header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 30px;
-      padding-bottom: 20px;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
     .brand-title {
-      font-size: 26px;
+      font-size: 24px;
       font-weight: 700;
       background: linear-gradient(135deg, #ffffff, var(--accent-cyan));
       -webkit-background-clip: text;
@@ -54,162 +54,349 @@
     .nav-links a:hover { color: var(--accent-cyan); }
     .grid-layout {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1.1fr 0.9fr;
       gap: 24px;
-      margin-bottom: 30px;
+      margin-bottom: 24px;
     }
-    @media (max-width: 850px) { .grid-layout { grid-template-columns: 1fr; } }
+    @media (max-width: 900px) { .grid-layout { grid-template-columns: 1fr; } }
     .card {
       background: var(--bg-surface);
       border: 1px solid var(--border-glow);
-      border-radius: 16px;
-      padding: 24px;
+      border-radius: 14px;
+      padding: 22px;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      margin-bottom: 24px;
     }
     .card-title {
-      font-size: 18px;
+      font-size: 17px;
       font-weight: 600;
       margin-bottom: 16px;
       color: #ffffff;
       display: flex;
       align-items: center;
-      gap: 8px;
+      justify-content: space-between;
     }
-    .form-group { margin-bottom: 16px; }
+    .form-group { margin-bottom: 14px; }
+    .form-group:last-child { margin-bottom: 0; }
     .form-label {
       display: block;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 600;
       color: var(--text-muted);
-      margin-bottom: 6px;
+      margin-bottom: 5px;
       text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
     .form-input, .form-select {
       width: 100%;
-      padding: 10px 14px;
+      padding: 9px 12px;
       background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 6px;
       color: #ffffff;
-      font-size: 14px;
+      font-size: 13px;
       outline: none;
+      transition: border-color 0.2s;
     }
     .form-input:focus, .form-select:focus { border-color: var(--accent-cyan); }
+    .form-select option {
+      background-color: #161e2e;
+      color: #ffffff;
+    }
     .btn {
-      padding: 10px 18px;
+      padding: 8px 14px;
       border: none;
-      border-radius: 8px;
+      border-radius: 6px;
       font-weight: 600;
       cursor: pointer;
-      font-size: 14px;
+      font-size: 13px;
       transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
     .btn-primary { background: var(--accent-cyan); color: #0a0d14; }
     .btn-primary:hover { opacity: 0.9; }
     .btn-secondary { background: rgba(255, 255, 255, 0.1); color: #fff; }
-    .btn-danger { background: rgba(239, 68, 68, 0.2); color: var(--accent-red); border: 1px solid var(--accent-red); }
+    .btn-secondary:hover { background: rgba(255, 255, 255, 0.18); }
+    .btn-danger { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); border: 1px solid rgba(239, 68, 68, 0.4); }
+    .btn-danger:hover { background: rgba(239, 68, 68, 0.3); }
+    .btn-success { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.4); }
+    .btn-sm { padding: 5px 10px; font-size: 11px; }
+    
+    .repo-subcard {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    .repo-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .repo-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent-cyan);
+    }
+    .inline-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .badge-success { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); }
+    .badge-warning { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+    .badge-danger { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); }
+
     table { width: 100%; border-collapse: collapse; margin-top: 10px; }
     th, td {
       padding: 12px 14px;
       text-align: left;
       border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-      font-size: 14px;
+      font-size: 13px;
     }
     th {
-      font-size: 12px;
+      font-size: 11px;
       text-transform: uppercase;
       color: var(--text-muted);
       background: rgba(0, 0, 0, 0.2);
     }
-    .badge {
-      display: inline-block;
-      padding: 4px 8px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 600;
+    .action-btns { display: flex; gap: 6px; }
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--bg-surface);
+      border: 1px solid var(--accent-cyan);
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 8px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+      display: none;
+      z-index: 1000;
+      font-size: 13px;
     }
-    .badge-success { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); }
-    .badge-warning { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
-    .action-btns { display: flex; gap: 8px; }
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      font-size: 13px;
+    }
   </style>
 </head>
 <body>
+  <%
+    const cfg = it.config || {};
+    const repos = cfg.repositories || {};
+    const wikiTarget = repos.wiki || 'local';
+    const sourcesTarget = repos.sources || cfg.sources_backend || 'local';
+    const sourcesBackend = cfg.sources_backend || 'local';
+    const harness = cfg.harness || cfg.backend || 'opencode';
+    const qmdEnabled = cfg.engines?.qmd !== false;
+    const wikiRepo = it.wikiRepo || {};
+    const sourcesRepo = it.sourcesRepo || {};
+    const userList = it.users || [];
+  %>
+
   <div class="container">
     <header>
-      <div class="brand-title">🦎 PodarcisNest Control Panel</div>
+      <div class="brand-title">🦎 PodarcisNest Admin Control Panel</div>
       <div class="nav-links">
-        <a href="/login">User Portal</a>
+        <a href="/login">User Workspaces</a>
         <a href="/logout">Logout</a>
       </div>
     </header>
 
+    <!-- GLOBAL PODARCIS REPOSITORIES & RUNTIME CONFIGURATION -->
+    <div class="card">
+      <div class="card-title">
+        <span>⚙️ Global Podarcis Repositories & Storage Configuration</span>
+        <button class="btn btn-primary" onclick="saveGlobalConfiguration()">💾 Save & Apply Server Configuration</button>
+      </div>
+      <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;">
+        Configure shared mounts (<code>wiki/</code>, <code>sources/</code>) and execution parameters. All connected user containers inherit these repositories and backend defaults.
+      </p>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+        
+        <!-- 1. SHARED WIKI REPO -->
+        <div class="repo-subcard">
+          <div class="repo-header">
+            <div class="repo-name">📖 Shared Wiki Repository (<code>data/shared/wiki</code>)</div>
+            <div>
+              <% if (wikiRepo.isGitRepo) { %>
+                <span class="badge <%= wikiRepo.isDirty ? 'badge-warning' : 'badge-success' %>">
+                  <%= wikiRepo.isDirty ? '● Uncommitted' : 'Clean' %>
+                </span>
+              <% } else { %>
+                <span class="badge badge-success">Local Dir</span>
+              <% } %>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Mode / Source Target:</label>
+            <select id="cfg-wiki-mode" class="form-select" onchange="toggleGitUrl('wiki')">
+              <option value="local" <%= (wikiTarget === 'local') ? 'selected' : '' %>>Local Directory (data/shared/wiki)</option>
+              <option value="git" <%= (wikiTarget !== 'local') ? 'selected' : '' %>>Git Remote Repository</option>
+            </select>
+          </div>
+
+          <div class="form-group" id="cfg-wiki-url-row" style="display: <%= (wikiTarget !== 'local') ? 'block' : 'none' %>;">
+            <label class="form-label">Git Remote URL:</label>
+            <input type="text" id="cfg-wiki-url" class="form-input" value="<%= (wikiTarget !== 'local') ? wikiTarget : '' %>" placeholder="https://github.com/org/podarcis-wiki.git">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Active Branch & Sync:</label>
+            <div class="inline-controls">
+              <select id="cfg-wiki-branch" class="form-select" style="flex: 1;" onchange="switchRepoBranch('wiki', this.value)">
+                <% const wikiBranches = wikiRepo.availableBranches?.length ? wikiRepo.availableBranches : (wikiRepo.branch ? [wikiRepo.branch] : ['master', 'main']); %>
+                <% wikiBranches.forEach(function(b) { %>
+                  <option value="<%= b %>" <%= b === wikiRepo.branch ? 'selected' : '' %>><%= b %><%= b === wikiRepo.branch ? ' (active)' : '' %></option>
+                <% }) %>
+              </select>
+              <button class="btn btn-secondary btn-sm" onclick="syncRepo('wiki')" title="Pull / Sync latest git changes">⬇️ Sync/Pull</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. SHARED SOURCES REPO -->
+        <div class="repo-subcard">
+          <div class="repo-header">
+            <div class="repo-name">🗄️ Shared Sources Repository (<code>data/shared/sources</code>)</div>
+            <div>
+              <% if (sourcesRepo.isGitRepo) { %>
+                <span class="badge <%= sourcesRepo.isDirty ? 'badge-warning' : 'badge-success' %>">
+                  <%= sourcesRepo.isDirty ? '● Uncommitted' : 'Clean' %>
+                </span>
+              <% } else { %>
+                <span class="badge badge-success">Local Dir</span>
+              <% } %>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Storage Backend & Ingestion Mode:</label>
+            <select id="cfg-sources-mode" class="form-select" onchange="toggleGitUrl('sources')">
+              <option value="local" <%= (sourcesBackend === 'local' || sourcesTarget === 'local') ? 'selected' : '' %>>Local Filesystem (data/shared/sources)</option>
+              <option value="gdrive" <%= (sourcesBackend === 'gdrive') ? 'selected' : '' %>>Google Drive Ingestion (gdrive)</option>
+              <option value="git" <%= (sourcesBackend === 'git' || (!['local', 'gdrive'].includes(sourcesTarget))) ? 'selected' : '' %>>Git Remote Repository</option>
+            </select>
+          </div>
+
+          <div class="form-group" id="cfg-sources-url-row" style="display: <%= (!['local', 'gdrive'].includes(sourcesTarget)) ? 'block' : 'none' %>;">
+            <label class="form-label">Git Remote URL:</label>
+            <input type="text" id="cfg-sources-url" class="form-input" value="<%= (!['local', 'gdrive'].includes(sourcesTarget)) ? sourcesTarget : '' %>" placeholder="https://github.com/org/podarcis-sources.git">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Active Branch & Sync:</label>
+            <div class="inline-controls">
+              <select id="cfg-sources-branch" class="form-select" style="flex: 1;" onchange="switchRepoBranch('sources', this.value)">
+                <% const srcBranches = sourcesRepo.availableBranches?.length ? sourcesRepo.availableBranches : (sourcesRepo.branch ? [sourcesRepo.branch] : ['master', 'main']); %>
+                <% srcBranches.forEach(function(b) { %>
+                  <option value="<%= b %>" <%= b === sourcesRepo.branch ? 'selected' : '' %>><%= b %><%= b === sourcesRepo.branch ? ' (active)' : '' %></option>
+                <% }) %>
+              </select>
+              <button class="btn btn-secondary btn-sm" onclick="syncRepo('sources')" title="Pull / Sync latest git changes">⬇️ Sync/Pull</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RUNTIME & ENGINES SECTION -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 14px;">
+        <div class="form-group">
+          <label class="form-label">Default Agent Harness:</label>
+          <select id="cfg-harness" class="form-select">
+            <option value="none" <%= (!harness || harness === 'none') ? 'selected' : '' %>>none (No Agent Harness)</option>
+            <option value="opencode" <%= (harness === 'opencode') ? 'selected' : '' %>>opencode (OpenCode Agent Harness)</option>
+            <option value="claude" <%= (harness === 'claude') ? 'selected' : '' %>>claude (Claude Code Harness)</option>
+            <option value="agy" <%= (harness === 'agy') ? 'selected' : '' %>>agy (Antigravity Harness)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Agent Engine Features:</label>
+          <div class="checkbox-row" style="margin-top: 8px;">
+            <input type="checkbox" id="cfg-qmd" <%= qmdEnabled ? 'checked' : '' %>>
+            <label for="cfg-qmd" style="cursor: pointer; color: var(--text-main);">Enable QMD (Quantum Markdown Engine)</label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROVISIONING & USER MANAGEMENT -->
     <div class="grid-layout">
       <!-- Create New User Container Card -->
       <div class="card">
-        <h2 class="card-title">➕ Provision Team Member</h2>
+        <h2 class="card-title">➕ Provision Team Workspace</h2>
         <form id="create-user-form">
           <div class="form-group">
-            <label class="form-label">Username</label>
-            <input type="text" id="new-username" name="username" class="form-input" placeholder="e.g. bob" required>
+            <label class="form-label">Researcher Username</label>
+            <input type="text" id="new-username" name="username" class="form-input" placeholder="e.g. charlie" required>
           </div>
           <div class="form-group">
             <label class="form-label">Initial Password</label>
             <input type="password" id="new-password" name="password" class="form-input" placeholder="••••••••" required>
           </div>
-          <div class="form-group">
-            <label class="form-label">Role</label>
-            <select id="new-role" name="role" class="form-select">
-              <option value="user">Researcher (User)</option>
-              <option value="admin">Administrator</option>
-            </select>
-          </div>
-          <button type="submit" class="btn btn-primary">Provision Workspace</button>
+          <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 10px;">Provision Workspace</button>
         </form>
       </div>
 
       <!-- Quick Server Info -->
       <div class="card">
-        <h2 class="card-title">ℹ Habitat Information</h2>
-        <p style="color: var(--text-muted); font-size: 14px; line-height: 1.6;">
-          PodarcisNest orchestrates isolated workspaces for each team member while mounting the shared Podarcis OKF knowledge base.
+        <h2 class="card-title">ℹ Server Habitat Topology</h2>
+        <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6;">
+          PodarcisNest dynamically spins up isolated Docker containers for each researcher, streaming their session directly to VS Code Web while mounting centralized OKF knowledge.
         </p>
-        <div style="margin-top: 20px; font-size: 13px; color: var(--text-muted);">
-          <div><strong>Shared Knowledge:</strong> <code>./data/shared</code></div>
-          <div style="margin-top: 8px;"><strong>System Service:</strong> <code>podarcisnest.service</code></div>
+        <div style="margin-top: 16px; font-size: 12px; color: var(--text-muted); line-height: 1.8;">
+          <div><strong>Shared Wiki Path:</strong> <code><%= wikiRepo.dir || './data/shared/wiki' %></code></div>
+          <div><strong>Shared Sources Path:</strong> <code><%= sourcesRepo.dir || './data/shared/sources' %></code></div>
+          <div><strong>Base Image:</strong> <code>podarcisnest-user:latest</code></div>
         </div>
       </div>
     </div>
 
     <!-- Active User Containers Table -->
     <div class="card">
-      <h2 class="card-title">🐳 Managed User Workspaces & Containers</h2>
+      <h2 class="card-title">🐳 Managed Team Workspaces & Containers</h2>
       <table>
         <thead>
           <tr>
-            <th>Username</th>
+            <th>Researcher</th>
             <th>Container Status</th>
-            <th>Assigned Port</th>
-            <th>Role</th>
+            <th>Port</th>
+            <th>Created</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
-          <% if (it.users && it.users.length > 0) { %>
-            <% it.users.forEach(function(user) { %>
+          <% if (userList && userList.length > 0) { %>
+            <% userList.forEach(function(user) { %>
             <tr>
               <td><strong><%= user.username %></strong></td>
-              <td><span class="badge badge-success"><%= user.status || 'Active' %></span></td>
-              <td><%= user.port || '—' %></td>
-              <td>
-                <% if (user.role === 'admin') { %>
-                <span class="badge badge-warning">Admin</span>
-                <% } else { %>
-                <span style="color: var(--text-muted);">Researcher</span>
-                <% } %>
-              </td>
+              <td><span class="badge <%= (user.status && user.status.includes('Up')) ? 'badge-success' : 'badge-warning' %>"><%= user.status || 'Stopped' %></span></td>
+              <td><code><%= user.port || '—' %></code></td>
+              <td style="color: var(--text-muted); font-size: 12px;"><%= user.created_at ? user.created_at.split('T')[0] : '—' %></td>
               <td class="action-btns">
                 <% if (user.username !== 'admin') { %>
-                <button class="btn btn-danger" onclick="deleteUser('<%= user.username %>')">Delete</button>
+                <button class="btn btn-secondary btn-sm" onclick="restartContainer('<%= user.username %>')">▶ Restart</button>
+                <button class="btn btn-secondary btn-sm" onclick="seedUserWorkspace('<%= user.username %>')">🔄 Re-sync</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteUser('<%= user.username %>')">Wipe</button>
                 <% } %>
               </td>
             </tr>
@@ -224,17 +411,141 @@
     </div>
   </div>
 
+  <div id="toast" class="toast"></div>
+
   <script>
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.style.display = 'block';
+      setTimeout(() => { toast.style.display = 'none'; }, 3500);
+    }
+
+    function toggleGitUrl(repoId) {
+      if (repoId === 'wiki') {
+        const val = document.getElementById('cfg-wiki-mode').value;
+        document.getElementById('cfg-wiki-url-row').style.display = (val === 'git') ? 'block' : 'none';
+      } else {
+        const val = document.getElementById('cfg-sources-mode').value;
+        document.getElementById('cfg-sources-url-row').style.display = (val === 'git') ? 'block' : 'none';
+      }
+    }
+
+    async function saveGlobalConfiguration() {
+      const wikiMode = document.getElementById('cfg-wiki-mode').value;
+      const wikiVal = wikiMode === 'git' ? (document.getElementById('cfg-wiki-url').value.trim() || 'local') : 'local';
+
+      const sourcesMode = document.getElementById('cfg-sources-mode').value;
+      let sourcesVal = sourcesMode;
+      if (sourcesMode === 'git') {
+        sourcesVal = document.getElementById('cfg-sources-url').value.trim() || 'local';
+      }
+
+      const harness = document.getElementById('cfg-harness').value;
+      const qmd = document.getElementById('cfg-qmd').checked;
+
+      const payload = {
+        repositories: {
+          wiki: wikiVal,
+          sources: sourcesVal,
+          workspace: 'local'
+        },
+        harness: harness,
+        sources_backend: sourcesMode === 'gdrive' ? 'gdrive' : 'local',
+        engines: {
+          qmd: qmd
+        }
+      };
+
+      try {
+        const res = await fetch('/api/admin/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('✅ Global Podarcis configuration updated successfully!');
+        } else {
+          alert(data.error || 'Failed to save configuration');
+        }
+      } catch (err) {
+        alert('Network error saving configuration');
+      }
+    }
+
+    async function syncRepo(repoId) {
+      showToast(`🔄 Pulling / syncing latest changes for ${repoId}...`);
+      try {
+        const res = await fetch('/api/admin/repos/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ repo: repoId })
+        });
+        const data = await res.json();
+        showToast(data.message || (data.success ? 'Sync completed' : 'Sync failed'));
+        if (data.success) {
+          setTimeout(() => location.reload(), 1500);
+        }
+      } catch (err) {
+        alert('Failed to sync repository');
+      }
+    }
+
+    async function switchRepoBranch(repoId, branch) {
+      try {
+        const res = await fetch('/api/admin/repos/branch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ repo: repoId, branch: branch })
+        });
+        const data = await res.json();
+        showToast(data.message || `Switched ${repoId} branch to ${branch}`);
+      } catch (err) {
+        alert('Failed to switch branch');
+      }
+    }
+
+    async function restartContainer(username) {
+      showToast(`Restarting container for ${username}...`);
+      const res = await fetch('/api/admin/containers/restart', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`Container for ${username} is now Up.`);
+        setTimeout(() => location.reload(), 1000);
+      } else {
+        alert(data.error || 'Failed to restart container');
+      }
+    }
+
+    async function seedUserWorkspace(username) {
+      showToast(`Re-syncing workspace for ${username}...`);
+      const res = await fetch('/api/admin/users/seed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`Workspace for ${username} re-seeded successfully.`);
+      } else {
+        alert(data.error || 'Failed to re-seed workspace');
+      }
+    }
+
     document.getElementById('create-user-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const username = document.getElementById('new-username').value;
+      const username = document.getElementById('new-username').value.trim();
       const password = document.getElementById('new-password').value;
-      const role = document.getElementById('new-role').value;
 
       const res = await fetch('/api/admin/users/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, role }),
+        body: JSON.stringify({ username, password }),
       });
       const data = await res.json();
       if (data.success) {

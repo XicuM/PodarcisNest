@@ -5,6 +5,7 @@ import net from 'net';
 import { spawnSync } from 'child_process';
 import { UserRecord, AdminRecord, ContainerInfo } from '../types.js';
 import { seedUserWorkspace } from './seeder.js';
+import { RepoManager } from './repo-manager.js';
 
 const USER_NAME_REGEX = /^[a-zA-Z0-9_-]{3,32}$/;
 
@@ -215,12 +216,11 @@ export class UserManager {
 
   public createUser(
     username: string,
-    role: 'user' | 'admin' = 'user',
     password?: string,
     sourcesBackend: 'local' | 'gdrive' = 'local'
   ): UserRecord {
     if (username === 'admin') {
-      throw new Error("Cannot create a user named 'admin'. Admin is a dedicated management role.");
+      throw new Error("Cannot create a user named 'admin'. Admin is a dedicated server management role.");
     }
     if (!USER_NAME_REGEX.test(username)) {
       throw new Error('Invalid username. Must be 3-32 alphanumeric characters, hyphens, or underscores.');
@@ -239,7 +239,6 @@ export class UserManager {
 
     const userInfo: UserRecord = {
       username,
-      role,
       created_at: new Date().toISOString(),
       workspace_path: workspaceDir,
       password_hash: hash,
@@ -337,6 +336,12 @@ export class UserManager {
 
     spawnSync('docker', ['rm', '-f', containerName], { stdio: 'pipe', timeout: 15000 });
 
+    const repoManager = new RepoManager(this.rootDir);
+    const globalCfg = repoManager.getGlobalConfig();
+    const memoryLimit = globalCfg.resources?.memory_limit || process.env.PODARCIS_CONTAINER_MEMORY || '4g';
+    const cpuLimit = globalCfg.resources?.cpus_limit || process.env.PODARCIS_CONTAINER_CPUS || '2.0';
+    const pidsLimit = String(globalCfg.resources?.pids_limit || process.env.PODARCIS_CONTAINER_PIDS || 256);
+
     const cmd = [
       'run',
       '-d',
@@ -347,11 +352,11 @@ export class UserManager {
       '--label',
       `podarcisnest.port=${port}`,
       '--memory',
-      '4g',
+      memoryLimit,
       '--cpus',
-      '2.0',
+      cpuLimit,
       '--pids-limit',
-      '256',
+      pidsLimit,
       '-v',
       `${workspaceDir}:/home/coder/${username}`,
       '-v',

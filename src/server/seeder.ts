@@ -38,7 +38,7 @@ export function getConfigYaml(sourcesBackend: 'local' | 'gdrive' = 'local') {
   sources: ${sourcesBackend}
   wiki: local
   workspace: local
-backend: opencode
+harness: opencode
 sources_backend: ${sourcesBackend}
 engines:
   qmd: true
@@ -48,6 +48,7 @@ engines:
 export const DEFAULT_VSCODE_SETTINGS_JSON = {
   'window.title': '🦎 Podarcis | Knowledge Base',
   'files.exclude': {
+    '**/.*': true,
     '**/*.css': true,
     '**/*.js': true,
     '**/*.json': true,
@@ -330,7 +331,6 @@ export function findTemplateSource(rootDir: string): string | null {
     path.join(rootDir, '..', 'Podarcis'),
     path.join(os.homedir(), 'Projects', 'Podarcis'),
     path.join(os.homedir(), 'Podarcis'),
-    '/home/xicu/Projects/Podarcis',
     path.join(rootDir, 'templates', 'workspace_template'),
     path.join(rootDir, 'src', 'server', 'templates', 'workspace_template'),
   ];
@@ -351,7 +351,7 @@ export function syncTemplates(rootDir: string): boolean {
   const localCandidates = [
     path.join(os.homedir(), 'Projects', 'Podarcis'),
     path.join(path.dirname(rootDir), 'Podarcis'),
-    '/home/xicu/Projects/Podarcis',
+    path.join(os.homedir(), 'Podarcis'),
   ];
 
   for (const local of localCandidates) {
@@ -394,7 +394,7 @@ export function seedUserWorkspace(
   const templateSrc = findTemplateSource(resolvedRoot);
 
   if (templateSrc && fs.existsSync(templateSrc)) {
-    const itemsToCopy = ['.agents', '.podarcis', '.clinerules', '.mcp.json', 'AGENTS.md', 'opencode.json', 'pyproject.toml'];
+    const itemsToCopy = ['.agents', '.podarcis', '.clinerules', '.mcp.json', 'AGENTS.md', 'CLAUDE.md', 'opencode.json', 'pyproject.toml'];
     for (const item of itemsToCopy) {
       const srcPath = path.join(templateSrc, item);
       const dstPath = path.join(workspaceDir, item);
@@ -595,19 +595,36 @@ node_modules/
     }
   }
 
-  // Symlink .opencode/agents -> ../.agents/agents
+  // Helper for resilient symlink creation
+  const safeSymlink = (target: string, linkPath: string, type: 'file' | 'dir' = 'file') => {
+    if (!fs.existsSync(linkPath)) {
+      try {
+        fs.symlinkSync(target, linkPath, type);
+      } catch {
+        // Fallback to copy if symlinks unsupported
+        try {
+          const resolvedTarget = path.resolve(path.dirname(linkPath), target);
+          if (fs.existsSync(resolvedTarget)) {
+            if (type === 'dir') {
+              fs.copySync(resolvedTarget, linkPath);
+            } else {
+              fs.copyFileSync(resolvedTarget, linkPath);
+            }
+          }
+        } catch {}
+      }
+    }
+  };
+
+  // Claude instruction symlink (CLAUDE.md -> AGENTS.md)
+  safeSymlink('AGENTS.md', path.join(workspaceDir, 'CLAUDE.md'), 'file');
+
+  // Claude directory compatibility (.claude -> .agents)
+  safeSymlink('.agents', path.join(workspaceDir, '.claude'), 'dir');
+
+  // OpenCode directories (.opencode/agents, .opencode/skills)
   const opencodeDir = path.join(workspaceDir, '.opencode');
   fs.ensureDirSync(opencodeDir);
-  const opencodeAgentsLink = path.join(opencodeDir, 'agents');
-  const targetAgentsDir = path.join(workspaceDir, '.agents', 'agents');
-  if (!fs.existsSync(opencodeAgentsLink) && fs.existsSync(targetAgentsDir)) {
-    try {
-      fs.symlinkSync('../.agents/agents', opencodeAgentsLink, 'dir');
-    } catch {
-      // Fallback to copy if symlink unsupported
-      try {
-        fs.copySync(targetAgentsDir, opencodeAgentsLink);
-      } catch {}
-    }
-  }
+  safeSymlink('../.agents/agents', path.join(opencodeDir, 'agents'), 'dir');
+  safeSymlink('../.agents/skills', path.join(opencodeDir, 'skills'), 'dir');
 }

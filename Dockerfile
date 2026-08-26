@@ -19,10 +19,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install uv package manager
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-ENV PIP_BREAK_SYSTEM_PACKAGES=1
+# Create a clean virtual environment and put it in PATH
+ENV VIRTUAL_ENV=/opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+RUN uv venv /opt/venv
 
-# Install Podarcis & MCP dependencies into system Python
-RUN uv pip install --system --break-system-packages --no-cache \
+# Install Podarcis & MCP dependencies into the virtual environment
+RUN uv pip install --no-cache \
     "mcp[cli]>=1.0.0,<2.0.0" \
     "rich>=13.7.0" \
     "questionary" \
@@ -39,9 +42,7 @@ RUN uv pip install --system --break-system-packages --no-cache \
 ARG PODARCIS_REF=master
 
 # Install podarcis CLI package from authoritative repository
-RUN uv pip install --system --break-system-packages --no-cache \
-    "git+https://github.com/XicuM/Podarcis.git@${PODARCIS_REF}" || \
-    pip3 install --break-system-packages --no-cache-dir "git+https://github.com/XicuM/Podarcis.git@${PODARCIS_REF}" || true
+RUN uv pip install --no-cache "git+https://github.com/XicuM/Podarcis.git@${PODARCIS_REF}" || true
 
 # Ensure workspace and code-server directories exist
 RUN mkdir -p /home/coder/workspace && \
@@ -57,6 +58,10 @@ RUN code-server --install-extension bierner.markdown-preview-github-styles || tr
 RUN code-server --install-extension houkanshan.vscode-markdown-footnote || true
 
 EXPOSE 8000
+
+# Healthcheck for VS Code Web / code-server process
+HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -f http://127.0.0.1:8000/ || exit 1
 
 # Start code-server without password auth (auth is handled by PodarcisNest dynamic router)
 CMD ["code-server", "--bind-addr", "0.0.0.0:8000", "--auth", "none", "/home/coder/workspace"]
