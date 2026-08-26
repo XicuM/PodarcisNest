@@ -1,0 +1,23 @@
+services:
+  podarcisnest:
+    image: node:20-slim
+    container_name: podarcisnest-server
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=production
+      - PODARCIS_PORT=8080
+      - PODARCIS_CONTAINER_MEMORY=4g
+      - PODARCIS_CONTAINER_CPUS=2.0
+      # Optional: Slack Bot configuration
+      # - SLACK_BOT_TOKEN=xoxb-...
+      # - SLACK_APP_TOKEN=xapp-...
+      # - ANTHROPIC_API_KEY=sk-ant-...
+    volumes:
+      # Mount Docker socket so PodarcisNest can orchestrate user containers
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Persistent workspace directory & data
+      - .:/app
+    working_dir: /app
+    command: ["node", "dist/cli/index.js", "run", "--host", "0.0.0.0", "--port", "8080"]

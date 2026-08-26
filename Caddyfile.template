@@ -1,0 +1,27 @@
+# Caddyfile for PodarcisNest Production Deployment with Automated HTTPS / Let's Encrypt
+# Replace nest.yourdomain.com with your actual domain or IP
+
+nest.yourdomain.com {
+    # Forward all traffic (HTTP + WebSocket) to PodarcisNest server
+    reverse_proxy 127.0.0.1:8080 {
+        # Streaming and WebSocket support
+        flush_interval -1
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    # Security headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+
+    # Logging
+    log {
+        output file /var/log/caddy/podarcisnest.log
+    }
+}

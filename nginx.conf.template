@@ -1,0 +1,48 @@
+# Nginx Configuration Template for PodarcisNest with WebSocket Support
+# Put this in /etc/nginx/sites-available/podarcisnest and symlink to sites-enabled/
+
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+server {
+    listen 80;
+    server_name nest.yourdomain.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name nest.yourdomain.com;
+
+    # SSL Certificate Paths
+    # ssl_certificate /etc/letsencrypt/live/nest.yourdomain.com/fullchain.pem;
+    # ssl_certificate_key /etc/letsencrypt/live/nest.yourdomain.com/privkey.pem;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+
+    # Client body size limit for large paper/dataset uploads
+    client_max_body_size 100M;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+
+        # WebSocket support
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+
+        # Forwarded headers
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Timeouts for long-running VS Code Web sessions
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+    }
+}
