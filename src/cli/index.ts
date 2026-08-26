@@ -78,44 +78,58 @@ program
     }
   });
 
+// Admin Commands
+const adminCmd = program.command('admin').description('Administrator security and server commands');
+
+adminCmd
+  .command('password <newPassword>')
+  .description('Set or reset administrator password')
+  .action((newPassword) => {
+    const um = new UserManager(rootDir);
+    try {
+      um.setAdminPassword(newPassword);
+      console.log(chalk.bold.green('✓ Admin password successfully updated.'));
+    } catch (err: any) {
+      console.error(chalk.bold.red('Error:'), err.message);
+    }
+  });
+
 // User Commands
 const userCmd = program.command('user').description('User provisioning commands');
 
 userCmd
   .command('list')
-  .description('List all registered users')
+  .description('List all registered researcher workspaces')
   .action(() => {
     const um = new UserManager(rootDir);
     const reg = um.getUsersRegistry();
 
     const table = new Table({
-      head: [chalk.bold('Username'), chalk.bold('Role'), chalk.bold('Created At'), chalk.bold('Workspace')],
+      head: [chalk.bold('Username'), chalk.bold('Created At'), chalk.bold('Workspace Path')],
     });
 
     for (const [uname, udata] of Object.entries(reg)) {
       table.push([
         uname,
-        udata.role || 'user',
         udata.created_at || '—',
-        udata.workspace_path || `./data/users/${uname}/workspace`,
+        udata.workspace_path || path.join(rootDir, 'data', 'users', uname),
       ]);
     }
 
-    console.log(chalk.bold('Registered Users'));
+    console.log(chalk.bold('Registered Researcher Workspaces'));
     console.log(table.toString());
   });
 
 userCmd
   .command('add <username>')
-  .description('Add a new researcher user (automatically initializes Podarcis workspace)')
+  .description('Add a new researcher workspace (automatically seeds Podarcis layout)')
   .option('-p, --password <password>', 'User password')
-  .option('--role <role>', 'User role', 'user')
   .option('--sources-backend <backend>', 'Sources backend (local or gdrive)', 'local')
   .option('-r, --run', 'Start user container immediately')
   .action(async (username, opts) => {
     const um = new UserManager(rootDir);
     try {
-      um.createUser(username, opts.role, opts.password, opts.sourcesBackend as 'local' | 'gdrive');
+      um.createUser(username, opts.password, opts.sourcesBackend as 'local' | 'gdrive');
       console.log(chalk.bold.green(`✓ User '${username}' created and Podarcis workspace initialized.`));
       if (opts.run) {
         const res = await um.startUserContainer(username);

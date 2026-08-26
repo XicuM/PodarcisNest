@@ -1,10 +1,10 @@
 export interface UserRecord {
   username: string;
-  role: 'user' | 'admin';
   created_at: string;
   workspace_path: string;
   password_hash: string;
   password_salt: string;
+  role?: string;
 }
 
 export interface AdminRecord {

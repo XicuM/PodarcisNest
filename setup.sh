@@ -7,11 +7,13 @@ INSTALL_SYSTEMD=true
 USER_SERVICE=false
 BUILD_DOCKER=true
 INSTALL_SLACK=false
+ADMIN_PASSWORD=""
 
 # Parse arguments
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --port) PORT="$2"; shift ;;
+        --admin-password) ADMIN_PASSWORD="$2"; shift ;;
         --no-systemd) INSTALL_SYSTEMD=false ;;
         --user-service) USER_SERVICE=true ;;
         --no-docker) BUILD_DOCKER=false ;;
@@ -20,12 +22,13 @@ while [[ "$#" -gt 0 ]]; do
         -h|--help)
             echo "Usage: ./setup.sh [OPTIONS]"
             echo "Options:"
-            echo "  --port <port>         Set web listening port (default: 8080)"
-            echo "  --no-systemd          Skip systemd service installation"
-            echo "  --user-service        Install as systemd user service instead of system service"
-            echo "  --no-docker           Skip Docker user image build"
-            echo "  --with-slack          Activate Slack integration (flags for reminder)"
-            echo "  --without-slack       Deactivate / skip Slack integration (default)"
+            echo "  --port <port>                 Set web listening port (default: 8080)"
+            echo "  --admin-password <password>   Set initial administrator password"
+            echo "  --no-systemd                  Skip systemd service installation"
+            echo "  --user-service                Install as systemd user service instead of system service"
+            echo "  --no-docker                   Skip Docker user image build"
+            echo "  --with-slack                  Activate Slack integration (flags for reminder)"
+            echo "  --without-slack               Deactivate / skip Slack integration (default)"
             exit 0
             ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
@@ -74,6 +77,12 @@ mkdir -p "$SCRIPT_DIR/data/users"
 mkdir -p "$SCRIPT_DIR/data/shared/wiki"
 mkdir -p "$SCRIPT_DIR/data/shared/sources"
 mkdir -p "$SCRIPT_DIR/data/logs"
+
+# Configure Admin Password if supplied
+if [ -n "$ADMIN_PASSWORD" ]; then
+    echo "Setting custom administrator password..."
+    "$SCRIPT_DIR/bin/podarcisnest.js" admin password "$ADMIN_PASSWORD" || true
+fi
 
 # Build Docker user image
 if [ "$BUILD_DOCKER" = true ]; then
@@ -171,9 +180,13 @@ echo "========================================="
 echo "   ✓ PodarcisNest Setup Complete!        "
 echo "========================================="
 echo "Web Portal: http://localhost:$PORT/login"
-echo "Default Admin Credentials:"
+echo "Administrator Credentials:"
 echo "  Username: admin"
-echo "  Password: admin"
+if [ -n "$ADMIN_PASSWORD" ]; then
+    echo "  Password: (as configured during setup)"
+else
+    echo "  Password: admin (Default — change via './bin/podarcisnest.js admin password <newpass>')"
+fi
 echo ""
 echo "Slack Integration Status:"
 if [ "$INSTALL_SLACK" = true ]; then

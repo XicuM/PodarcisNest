@@ -11,6 +11,7 @@ import { Eta } from 'eta';
 import httpProxy from 'http-proxy';
 import { fileURLToPath } from 'url';
 import { UserManager } from './user-manager.js';
+import { RepoManager } from './repo-manager.js';
 import { seedUserWorkspace } from './seeder.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -62,10 +63,29 @@ export function findTemplatesDir(rootDir: string): string {
   return path.join(rootDir, 'src', 'server', 'templates');
 }
 
+export function parseCookieHeader(cookieHeader?: string): Record<string, string> {
+  const cookies: Record<string, string> = {};
+  if (!cookieHeader) return cookies;
+  const pairs = cookieHeader.split(';');
+  for (const pair of pairs) {
+    const idx = pair.indexOf('=');
+    if (idx < 0) continue;
+    const key = pair.substring(0, idx).trim();
+    const val = pair.substring(idx + 1).trim();
+    try {
+      cookies[key] = decodeURIComponent(val);
+    } catch {
+      cookies[key] = val;
+    }
+  }
+  return cookies;
+}
+
 export function getSecretKey(rootDir: string): Buffer {
   const secretFile = path.join(rootDir, 'data', '.session_secret');
   if (fs.existsSync(secretFile)) {
     try {
+      fs.chmodSync(secretFile, 0o600);
       const raw = fs.readFileSync(secretFile);
       if (raw.length === 32) return raw;
       const hex = raw.toString('utf-8').trim();
@@ -74,7 +94,7 @@ export function getSecretKey(rootDir: string): Buffer {
   }
   const secret = crypto.randomBytes(32);
   fs.ensureDirSync(path.dirname(secretFile));
-  fs.writeFileSync(secretFile, secret);
+  fs.writeFileSync(secretFile, secret, { mode: 0o600 });
   return secret;
 }
 
@@ -85,6 +105,7 @@ export function createServer(rootDir: string = defaultRootDir): FastifyInstance 
   });
 
   const userManager = new UserManager(rootDir);
+  const repoManager = new RepoManager(rootDir);
   const secretKey = getSecretKey(rootDir);
   const templatesDir = findTemplatesDir(rootDir);
   const proxy = httpProxy.createProxyServer({
@@ -257,24 +278,107 @@ export function createServer(rootDir: string = defaultRootDir): FastifyInstance 
         };
       });
 
-    return reply.view('admin.eta', { users: userList });
+    const globalConfig = repoManager.getGlobalConfig();
+    const wikiRepo = repoManager.getRepoInfo('wiki');
+    const sourcesRepo = repoManager.getRepoInfo('sources');
+
+    return reply.view('admin.eta', {
+      users: userList,
+      config: globalConfig,
+      wikiRepo,
+      sourcesRepo,
+    });
   });
 
-  // Admin APIs
+  // Admin APIs: Configuration & Repositories
+  app.get('/api/admin/config', async (req, reply) => {
+    if (!req.session.get('is_admin')) {
+      return reply.code(403).send({ error: 'Unauthorized' });
+    }
+    const config = repoManager.getGlobalConfig();
+    const wiki = repoManager.getRepoInfo('wiki');
+    const sources = repoManager.getRepoInfo('sources');
+    return reply.send({ success: true, config, wiki, sources });
+  });
+
+  app.post('/api/admin/config', async (req, reply) => {
+    if (!req.session.get('is_admin')) {
+      return reply.code(403).send({ error: 'Unauthorized' });
+    }
+    const body = req.body as any;
+    try {
+      const updated = repoManager.saveGlobalConfig(body);
+      return reply.send({ success: true, config: updated });
+    } catch (err: any) {
+      return reply.code(400).send({ error: err.message });
+    }
+  });
+
+  app.post('/api/admin/repos/sync', async (req, reply) => {
+    if (!req.session.get('is_admin')) {
+      return reply.code(403).send({ error: 'Unauthorized' });
+    }
+    const body = req.body as { repo: 'wiki' | 'sources'; remote_url?: string };
+    if (!body.repo || !['wiki', 'sources'].includes(body.repo)) {
+      return reply.code(400).send({ error: "Invalid repository type. Must be 'wiki' or 'sources'." });
+    }
+    try {
+      const res = repoManager.syncRepo(body.repo, body.remote_url);
+      return reply.send({ success: res.success, message: res.message });
+    } catch (err: any) {
+      return reply.code(400).send({ error: err.message });
+    }
+  });
+
+  app.post('/api/admin/repos/branch', async (req, reply) => {
+    if (!req.session.get('is_admin')) {
+      return reply.code(403).send({ error: 'Unauthorized' });
+    }
+    const body = req.body as { repo: 'wiki' | 'sources'; branch: string };
+    if (!body.repo || !body.branch) {
+      return reply.code(400).send({ error: 'repo and branch parameters required.' });
+    }
+    try {
+      const res = repoManager.switchBranch(body.repo, body.branch);
+      return reply.send({ success: res.success, message: res.message });
+    } catch (err: any) {
+      return reply.code(400).send({ error: err.message });
+    }
+  });
+
+  // Admin APIs: User Management
   app.post('/api/admin/users/create', async (req, reply) => {
     if (!req.session.get('is_admin')) {
       return reply.code(403).send({ error: 'Unauthorized' });
     }
     const body = req.body as {
       username?: string;
-      role?: 'user' | 'admin';
       password?: string;
       sources_backend?: 'local' | 'gdrive';
     };
     const username = (body.username || '').trim().toLowerCase();
     try {
-      const user = userManager.createUser(username, body.role || 'user', body.password, body.sources_backend || 'local');
+      const globalCfg = repoManager.getGlobalConfig();
+      const sourcesBackend = body.sources_backend || (globalCfg.sources_backend as 'local' | 'gdrive') || 'local';
+      const user = userManager.createUser(username, body.password, sourcesBackend);
       return reply.send({ success: true, user });
+    } catch (err: any) {
+      return reply.code(400).send({ error: err.message });
+    }
+  });
+
+  app.post('/api/admin/users/seed', async (req, reply) => {
+    if (!req.session.get('is_admin')) {
+      return reply.code(403).send({ error: 'Unauthorized' });
+    }
+    const body = req.body as { username?: string };
+    const username = (body.username || '').trim().toLowerCase();
+    try {
+      const ws = userManager.getUserWorkspace(username);
+      const globalCfg = repoManager.getGlobalConfig();
+      const sourcesBackend = (globalCfg.sources_backend as 'local' | 'gdrive') || 'local';
+      seedUserWorkspace(ws, username, rootDir, sourcesBackend);
+      return reply.send({ success: true, message: `Workspace for '${username}' re-seeded successfully.` });
     } catch (err: any) {
       return reply.code(400).send({ error: err.message });
     }
@@ -375,17 +479,43 @@ export function createServer(rootDir: string = defaultRootDir): FastifyInstance 
   app.all('/user/:username', handleProxy);
   app.all('/user/:username/*', handleProxy);
 
-  // WebSocket proxy on upgrade
+  // WebSocket proxy on upgrade with secure session authentication
   app.server.on('upgrade', async (req, socket, head) => {
     const url = req.url || '';
     const match = url.match(/^\/user\/([^/?#]+)(.*)/);
     if (!match) {
+      socket.write('HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\n');
       socket.destroy();
       return;
     }
 
     const targetUser = match[1].toLowerCase();
     if (targetUser === 'admin') {
+      socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
+      socket.destroy();
+      return;
+    }
+
+    // Validate and authenticate session cookie
+    const cookies = parseCookieHeader(req.headers.cookie);
+    const sessionCookie = cookies['session'];
+    if (!sessionCookie) {
+      socket.write('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n');
+      socket.destroy();
+      return;
+    }
+
+    const session = app.decodeSecureSession(sessionCookie);
+    if (!session) {
+      socket.write('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n');
+      socket.destroy();
+      return;
+    }
+
+    const authUser = session.get('authenticated_user');
+    const isAdmin = session.get('is_admin');
+    if (!isAdmin && authUser !== targetUser) {
+      socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
       socket.destroy();
       return;
     }
@@ -397,12 +527,14 @@ export function createServer(rootDir: string = defaultRootDir): FastifyInstance 
 
     const portNum = container.port ? parseInt(container.port, 10) : null;
     if (!portNum || isNaN(portNum)) {
+      socket.write('HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\n');
       socket.destroy();
       return;
     }
 
     const isReady = await waitForPort(portNum, '127.0.0.1', 4000);
     if (!isReady) {
+      socket.write('HTTP/1.1 504 Gateway Timeout\r\nConnection: close\r\n\r\n');
       socket.destroy();
       return;
     }
