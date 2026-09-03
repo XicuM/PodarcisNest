@@ -2,6 +2,7 @@ import fs from 'fs-extra';
 import path from 'path';
 import crypto from 'crypto';
 import net from 'net';
+import os from 'os';
 import { spawnSync } from 'child_process';
 import { UserRecord, AdminRecord, ContainerInfo } from '../types.js';
 import { seedUserWorkspace } from './seeder.js';
@@ -381,19 +382,76 @@ export class UserManager {
       cmd.push('-e', `CLINE_MODEL=${globalCfg.cline.model_id}`);
     }
 
-    cmd.push(
-      '-p',
-      `127.0.0.1:${port}:8000`,
-      '--restart',
-      'unless-stopped',
-      'podarcisnest-user:latest',
-      'code-server',
-      '--bind-addr',
-      '0.0.0.0:8000',
-      '--auth',
-      'none',
-      `/home/coder/${username}`
-    );
+    // Auto-install Herdr Companion extension: mount local vsix if available on host
+    // Supports both extensions/herdr-companion.vsix in repo and ~/Projects/herdr-vscode builds
+    // Legacy herdr-vscode vsix is also checked for backward compat
+    const herdrMounts: Array<{ host: string; container: string }> = [];
+    const herdrCandidates: Array<{ host: string; container: string }> = [
+      { host: path.join(this.rootDir, 'extensions', 'herdr-companion-0.3.0.vsix'), container: '/tmp/herdr-companion.vsix' },
+      { host: path.join(this.rootDir, 'extensions', 'herdr-companion-0.2.0.vsix'), container: '/tmp/herdr-companion.vsix' },
+      { host: path.join(this.rootDir, 'extensions', 'herdr-companion.vsix'), container: '/tmp/herdr-companion.vsix' },
+      { host: path.join(os.homedir(), 'Projects', 'herdr-companion', 'herdr-companion-0.3.0.vsix'), container: '/tmp/herdr-companion.vsix' },
+      { host: path.join(os.homedir(), 'Projects', 'herdr-vscode', 'herdr-companion-0.2.0.vsix'), container: '/tmp/herdr-companion.vsix' },
+      // Legacy fallback: herdr-vscode
+      { host: path.join(this.rootDir, 'extensions', 'herdr-vscode-0.2.0.vsix'), container: '/tmp/herdr-companion.vsix' },
+      { host: path.join(os.homedir(), 'Projects', 'herdr-vscode', 'herdr-vscode-0.2.0.vsix'), container: '/tmp/herdr-companion.vsix' },
+    ];
+    for (const cand of herdrCandidates) {
+      if (fs.existsSync(cand.host)) {
+        herdrMounts.push(cand);
+        break;
+      }
+    }
+    for (const m of herdrMounts) {
+      cmd.push('-v', `${m.host}:${m.container}:ro`);
+    }
+
+    // Provision custom Herdr settings (old host session/config) for each user container.
+    // The Herdr Companion extension defaults to session 'vscode' and reads
+    // ~/.config/herdr/sessions/vscode/config.toml (via HERDR_CONFIG_PATH),
+    // falling back to ~/.config/herdr/config.toml. Without these, containers
+    // boot with herdr defaults (catppuccin-latte) instead of the custom
+    // tmux-mirrored keys/theme, collapsed sidebar, mobile_width_threshold=0, etc.
+    // Source priority: live host session config > host base config > repo canonical.
+    const herdrConfigSource =
+      [
+        path.join(os.homedir(), '.config', 'herdr', 'sessions', 'vscode', 'config.toml'),
+        path.join(os.homedir(), '.config', 'herdr', 'config.toml'),
+        path.join(this.rootDir, 'config', 'herdr', 'config.toml'),
+      ].find((p) => fs.existsSync(p)) || null;
+    if (herdrConfigSource) {
+      cmd.push('-v', `${herdrConfigSource}:/home/coder/.config/herdr/config.toml:ro`);
+      cmd.push('-v', `${herdrConfigSource}:/home/coder/.config/herdr/sessions/vscode/config.toml:ro`);
+    }
+
+    // Herdr vsix mount is used at runtime; if no vsix, extension is already baked in Dockerfile.
+    // If a vsix is mounted, install it before launching code-server. This requires overriding
+    // the image's default ENTRYPOINT (/usr/bin/entrypoint.sh -> code-server "$@") which would
+    // otherwise interpret "bash -c" as code-server args and fail with "Unknown option -c".
+    const hasHerdrVsix = herdrMounts.some(m => m.container === '/tmp/herdr-companion.vsix');
+
+    if (hasHerdrVsix) {
+      const installCmd = 'code-server --install-extension /tmp/herdr-companion.vsix || true';
+
+      cmd.push(
+        '--entrypoint', 'bash',
+        '-p', `127.0.0.1:${port}:8000`,
+        '--restart', 'unless-stopped',
+        'podarcisnest-user:latest',
+        '-c',
+        `eval "$(fixuid -q)" && ${installCmd} && exec dumb-init /usr/bin/code-server --bind-addr 0.0.0.0:8000 --auth none /home/coder/${username}`
+      );
+    } else {
+      cmd.push(
+        '-p', `127.0.0.1:${port}:8000`,
+        '--restart', 'unless-stopped',
+        'podarcisnest-user:latest',
+        'code-server',
+        '--bind-addr', '0.0.0.0:8000',
+        '--auth', 'none',
+        `/home/coder/${username}`
+      );
+    }
 
     const res = spawnSync('docker', cmd, { encoding: 'utf-8', timeout: 30000 });
     if (res.status !== 0) {
@@ -406,12 +464,80 @@ export class UserManager {
       };
     }
 
+    // Seed herdr config into the running container (covers images built before
+    // the config was baked in, and guarantees per-user provisioning even if
+    // file mounts were skipped). Non-fatal: mounts/Dockerfile already cover
+    // future restarts.
+    try {
+      this.provisionHerdrConfig(containerName);
+    } catch {}
+
     return {
       name: containerName,
       username,
       status: 'Up (running)',
       port: String(port),
     };
+  }
+
+  private resolveHerdrConfigSource(): string | null {
+    const candidates = [
+      path.join(os.homedir(), '.config', 'herdr', 'sessions', 'vscode', 'config.toml'),
+      path.join(os.homedir(), '.config', 'herdr', 'config.toml'),
+      path.join(this.rootDir, 'config', 'herdr', 'config.toml'),
+    ];
+    for (const p of candidates) {
+      try {
+        if (fs.existsSync(p)) return p;
+      } catch {}
+    }
+    return null;
+  }
+
+  public provisionHerdrConfig(containerName: string): boolean {
+    const src = this.resolveHerdrConfigSource();
+    if (!src) return false;
+    try {
+      spawnSync('docker', ['exec', '--user', 'coder', containerName, 'mkdir', '-p', '/home/coder/.config/herdr/sessions/vscode'], {
+        stdio: 'pipe',
+        timeout: 10000,
+      });
+      const cpBase = spawnSync('docker', ['cp', src, `${containerName}:/home/coder/.config/herdr/config.toml`], {
+        stdio: 'pipe',
+        timeout: 15000,
+      });
+      const cpSession = spawnSync('docker', ['cp', src, `${containerName}:/home/coder/.config/herdr/sessions/vscode/config.toml`], {
+        stdio: 'pipe',
+        timeout: 15000,
+      });
+      if (cpBase.status !== 0 || cpSession.status !== 0) return false;
+      spawnSync('docker', ['exec', '--user', 'coder', containerName, 'chown', 'coder:coder', '/home/coder/.config/herdr/config.toml', '/home/coder/.config/herdr/sessions/vscode/config.toml'], {
+        stdio: 'pipe',
+        timeout: 10000,
+      });
+      // Restart session servers so the new config takes effect on next attach.
+      // Non-fatal if no server is running yet.
+      spawnSync('docker', ['exec', '--user', 'coder', containerName, 'pkill', '-f', 'herdr.*--session'], {
+        stdio: 'pipe',
+        timeout: 10000,
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  public syncAllUserHerdrConfigs(): Record<string, boolean> {
+    const results: Record<string, boolean> = {};
+    for (const c of this.listContainers()) {
+      if (!c.name) continue;
+      try {
+        results[c.username || c.name] = this.provisionHerdrConfig(c.name);
+      } catch {
+        results[c.username || c.name] = false;
+      }
+    }
+    return results;
   }
 
   public syncAllUserClineSettings(): void {

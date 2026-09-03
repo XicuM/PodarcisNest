@@ -50,11 +50,10 @@
     "activityBar.foreground": "#ffffff",
     "activityBar.inactiveForeground": "#7ba5e0"
   },
-  "continue.telemetryEnabled": false,
-  "continue.enableTabAutocomplete": true,
-  "continue.pauseTabAutocompleteOnBattery": false,
-  "continue.remoteConfigServerUrl": null,
-  "cline.telemetryEnabled": false,
-  "cline.enableNativeToolCalls": true,
-  "cline.preferredLanguage": "Markdown"
+  "chat.commandCenter.enabled": false,
+  "inlineChat.mode": "off",
+  "github.copilot.chat.enabled": false,
+  "github.copilot.enable": {
+    "*": false
+  }
 }

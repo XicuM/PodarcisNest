@@ -226,6 +226,22 @@ userCmd
   });
 
 userCmd
+  .command('sync-herdr')
+  .description('Provision custom Herdr config into all running user containers')
+  .action(() => {
+    const um = new UserManager(rootDir);
+    const results = um.syncAllUserHerdrConfigs();
+    const entries = Object.entries(results);
+    if (entries.length === 0) {
+      console.log(chalk.dim('No running user containers found.'));
+      return;
+    }
+    for (const [uname, ok] of entries) {
+      console.log(`User '${uname}': ${ok ? chalk.green('Herdr config provisioned') : chalk.red('Failed')}`);
+    }
+  });
+
+userCmd
   .command('start-all')
   .description('Start all registered user containers')
   .action(async () => {

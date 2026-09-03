@@ -98,21 +98,20 @@ export const DEFAULT_VSCODE_SETTINGS_JSON = {
     'activityBar.foreground': '#ffffff',
     'activityBar.inactiveForeground': '#7ba5e0',
   },
-  'continue.telemetryEnabled': false,
-  'continue.enableTabAutocomplete': true,
-  'continue.pauseTabAutocompleteOnBattery': false,
-  'continue.remoteConfigServerUrl': null,
-  'cline.telemetryEnabled': false,
-  'cline.enableNativeToolCalls': true,
-  'cline.preferredLanguage': 'Markdown',
+  'chat.commandCenter.enabled': false,
+  'inlineChat.mode': 'off',
+  'github.copilot.chat.enabled': false,
+  'github.copilot.enable': {
+    '*': false,
+  },
 };
 
 export const DEFAULT_VSCODE_EXTENSIONS_JSON = {
   recommendations: [
-    'saoudrizwan.claude-dev',
     'houkanshan.vscode-markdown-footnote',
     'bierner.markdown-preview-github-styles',
     'constellationgraph.constellationgraph',
+    'xicu.herdr-companion',
   ],
 };
 
@@ -558,6 +557,27 @@ node_modules/
   const tplExtensions = path.join(templateVscodeDir, 'extensions.json');
   if (!fs.existsSync(tplExtensions)) {
     fs.writeFileSync(tplExtensions, JSON.stringify(DEFAULT_VSCODE_EXTENSIONS_JSON, null, 2), 'utf-8');
+  } else {
+    // Migrate existing template: remove deprecated claude-dev / legacy herdr-vscode, include Herdr Companion if missing
+    try {
+      const tplExt = fs.readJsonSync(tplExtensions) as { recommendations?: string[] };
+      let recs = Array.isArray(tplExt.recommendations) ? [...tplExt.recommendations] : [];
+      let changed = false;
+      const filtered = recs.filter((r) => r !== 'saoudrizwan.claude-dev');
+      if (filtered.length !== recs.length) { recs = filtered; changed = true; }
+      // Migrate legacy herdr-vscode -> herdr-companion
+      if (recs.includes('xicu.herdr-vscode') && !recs.includes('xicu.herdr-companion')) {
+        recs = recs.map((r) => (r === 'xicu.herdr-vscode' ? 'xicu.herdr-companion' : r));
+        changed = true;
+      } else if (recs.includes('xicu.herdr-vscode') && recs.includes('xicu.herdr-companion')) {
+        recs = recs.filter((r) => r !== 'xicu.herdr-vscode');
+        changed = true;
+      }
+      if (!recs.includes('xicu.herdr-companion')) { recs.push('xicu.herdr-companion'); changed = true; }
+      if (changed) {
+        fs.writeFileSync(tplExtensions, JSON.stringify({ recommendations: recs }, null, 2), 'utf-8');
+      }
+    } catch {}
   }
 
   const tplKeybindings = path.join(templateVscodeDir, 'keybindings.json');
@@ -608,6 +628,45 @@ node_modules/
     } else {
       fs.writeFileSync(wsExtensions, JSON.stringify(DEFAULT_VSCODE_EXTENSIONS_JSON, null, 2), 'utf-8');
     }
+    // Ensure copied file is also migrated (remove deprecated, add Herdr Companion, migrate legacy)
+    try {
+      const wsExt = fs.readJsonSync(wsExtensions) as { recommendations?: string[] };
+      let recs = Array.isArray(wsExt.recommendations) ? [...wsExt.recommendations] : [];
+      let changed = false;
+      const filtered = recs.filter((r) => r !== 'saoudrizwan.claude-dev');
+      if (filtered.length !== recs.length) { recs = filtered; changed = true; }
+      if (recs.includes('xicu.herdr-vscode') && !recs.includes('xicu.herdr-companion')) {
+        recs = recs.map((r) => (r === 'xicu.herdr-vscode' ? 'xicu.herdr-companion' : r));
+        changed = true;
+      } else if (recs.includes('xicu.herdr-vscode') && recs.includes('xicu.herdr-companion')) {
+        recs = recs.filter((r) => r !== 'xicu.herdr-vscode');
+        changed = true;
+      }
+      if (!recs.includes('xicu.herdr-companion')) { recs.push('xicu.herdr-companion'); changed = true; }
+      if (changed) {
+        fs.writeFileSync(wsExtensions, JSON.stringify({ recommendations: recs }, null, 2), 'utf-8');
+      }
+    } catch {}
+  } else {
+    // Migrate existing workspace to include Herdr Companion if missing, remove deprecated, migrate legacy
+    try {
+      const wsExt = fs.readJsonSync(wsExtensions) as { recommendations?: string[] };
+      let recs = Array.isArray(wsExt.recommendations) ? [...wsExt.recommendations] : [];
+      let changed = false;
+      const filtered = recs.filter((r) => r !== 'saoudrizwan.claude-dev');
+      if (filtered.length !== recs.length) { recs = filtered; changed = true; }
+      if (recs.includes('xicu.herdr-vscode') && !recs.includes('xicu.herdr-companion')) {
+        recs = recs.map((r) => (r === 'xicu.herdr-vscode' ? 'xicu.herdr-companion' : r));
+        changed = true;
+      } else if (recs.includes('xicu.herdr-vscode') && recs.includes('xicu.herdr-companion')) {
+        recs = recs.filter((r) => r !== 'xicu.herdr-vscode');
+        changed = true;
+      }
+      if (!recs.includes('xicu.herdr-companion')) { recs.push('xicu.herdr-companion'); changed = true; }
+      if (changed) {
+        fs.writeFileSync(wsExtensions, JSON.stringify({ recommendations: recs }, null, 2), 'utf-8');
+      }
+    } catch {}
   }
 
   const wsKeybindings = path.join(vscodeDir, 'keybindings.json');

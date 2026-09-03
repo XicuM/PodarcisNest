@@ -14,7 +14,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     build-essential \
     ripgrep \
+    ca-certificates \
+    gnupg \
+    tar \
+    unzip \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js 20.x (provides npm for opencode; codercom/code-server bundles node but not on PATH)
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    node --version && npm --version && \
+    rm -rf /var/lib/apt/lists/*
 
 # Install uv package manager
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
@@ -44,18 +54,51 @@ ARG PODARCIS_REF=master
 # Install podarcis CLI package from authoritative repository
 RUN uv pip install --no-cache "git+https://github.com/XicuM/Podarcis.git@${PODARCIS_REF}" || true
 
+# Install opencode CLI (https://opencode.ai - npm package opencode-ai, fallback to install script)
+RUN npm install -g opencode-ai && opencode --version || \
+    (curl -fsSL https://opencode.ai/install | bash && \
+     cp /root/.opencode/bin/opencode /usr/local/bin/opencode 2>/dev/null || cp /home/coder/.opencode/bin/opencode /usr/local/bin/opencode 2>/dev/null || true && \
+     chmod +x /usr/local/bin/opencode 2>/dev/null || true && \
+     opencode --version || /usr/local/bin/opencode --version || /root/.opencode/bin/opencode --version || echo "opencode install completed with fallback")
+
+# Install herdr CLI (https://herdr.dev - terminal workspace manager for AI coding agents,
+# required by the Herdr Companion VS Code extension baked below)
+RUN curl -fsSL https://herdr.dev/install.sh | HERDR_INSTALL_DIR=/usr/local/bin sh && \
+    ln -sf /usr/local/bin/herdr /usr/bin/herdr && \
+    herdr --version || echo "WARNING: herdr install failed, continuing without herdr binary"
+
 # Ensure workspace and code-server directories exist
 RUN mkdir -p /home/coder/workspace && \
     chown -R coder:coder /home/coder
 
+# Bake canonical Herdr config (custom session settings: sidebar collapsed/hidden,
+# mobile_width_threshold=0, allow_nested, tmux-mirrored keys/theme) so every user
+# container gets the host's custom settings by default, without host mounts.
+# Runtime (user-manager.ts) also mounts/provisions this per user container so
+# updates propagate without image rebuild.
+COPY config/herdr/config.toml /tmp/podarcis-herdr-config.toml
+RUN mkdir -p /home/coder/.config/herdr/sessions/vscode && \
+    cp /tmp/podarcis-herdr-config.toml /home/coder/.config/herdr/config.toml && \
+    cp /tmp/podarcis-herdr-config.toml /home/coder/.config/herdr/sessions/vscode/config.toml && \
+    chown -R coder:coder /home/coder/.config/herdr && \
+    rm /tmp/podarcis-herdr-config.toml
+
 USER coder
 WORKDIR /home/coder/workspace
 
-# Install popular extensions for VS Code Web (Python, Markdown, etc.)
-RUN code-server --install-extension ms-python.python || true
+# Install popular extensions for VS Code Web (Markdown, graph visualization, etc.)
 RUN code-server --install-extension yzhang.markdown-all-in-one || true
 RUN code-server --install-extension bierner.markdown-preview-github-styles || true
 RUN code-server --install-extension houkanshan.vscode-markdown-footnote || true
+RUN code-server --install-extension constellationgraph.constellationgraph || true
+
+USER root
+# Copy local Herdr vsix extensions into image if present (build context: ./extensions/)
+COPY --chown=coder:coder extensions/ /tmp/herdr-extensions/
+USER coder
+# Install Herdr Companion extension: prefer local vsix if baked, fallback to Open VSX (xicu.herdr-companion, legacy xicu.herdr-vscode)
+RUN if ls /tmp/herdr-extensions/*.vsix 1>/dev/null 2>&1; then for vsix in /tmp/herdr-extensions/*.vsix; do echo "Installing Herdr vsix: $vsix"; code-server --install-extension "$vsix" || true; done; rm -rf /tmp/herdr-extensions || true; else rm -rf /tmp/herdr-extensions || true; fi
+RUN code-server --install-extension xicu.herdr-companion || code-server --install-extension xicu.herdr-vscode || true
 
 EXPOSE 8000
 

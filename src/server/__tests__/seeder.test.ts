@@ -39,7 +39,7 @@ describe('Workspace Seeder & VSCode Configuration', () => {
     const extensionsFile = path.join(vscodeDir, 'extensions.json');
     expect(fs.existsSync(extensionsFile)).toBe(true);
     const extensions = fs.readJsonSync(extensionsFile);
-    expect(extensions.recommendations).toContain('saoudrizwan.claude-dev');
+    expect(extensions.recommendations).not.toContain('saoudrizwan.claude-dev');
     expect(extensions.recommendations).toContain('houkanshan.vscode-markdown-footnote');
 
     const keybindingsFile = path.join(vscodeDir, 'keybindings.json');
