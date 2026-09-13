@@ -108,6 +108,26 @@ Run via `podarcisnest` (if installed globally) or `./bin/podarcisnest.js`:
 
 ---
 
+## 📟 Wiki TUI attach (`docker exec`)
+
+The user image includes `neovim` and `lf` for the herdr wiki layout (`podarcis wiki`). Existing installs must rebuild the image (`docker build -t podarcisnest-user:latest .`, or re-run `./setup.sh` without `--no-docker`) and recreate/start the user container; `podarcisnest user start` will not rebuild an image that already exists. Attach from the host **after** the container is running (`docker exec` fails if it is stopped). Do **not** wrap the command in `bash -lc`: a Debian login shell resets `PATH` via `/etc/profile` and drops `/opt/venv/bin`, so `podarcis` is not found. `docker exec` without a login shell keeps the image `ENV PATH`.
+
+```bash
+# Start via portal login or:
+podarcisnest user start alice
+docker exec -it -w /home/coder/alice podarcisnest-user-alice podarcis wiki
+```
+
+If `podarcis` is still not on `PATH`, keep the container name and pin a container PATH (do not interpolate the host `$PATH`):
+
+```bash
+docker exec -it -w /home/coder/alice -e PATH=/opt/venv/bin:/usr/local/bin:/usr/bin:/bin podarcisnest-user-alice podarcis wiki
+```
+
+The container must already be running. If idle-stop is enabled later, `docker exec` is not counted as activity; start via portal login or `podarcisnest user start` before attaching. SSH / `herdr machine add` is not supported in this image (no sshd).
+
+---
+
 ## 🌐 Production Deployment & TLS Reverse Proxy
 
 For production deployments on a public domain, PodarcisNest includes turnkey configurations:

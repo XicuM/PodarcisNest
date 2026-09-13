@@ -18,6 +18,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gnupg \
     tar \
     unzip \
+    neovim \
+    lf \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js 20.x (provides npm for opencode; codercom/code-server bundles node but not on PATH)
